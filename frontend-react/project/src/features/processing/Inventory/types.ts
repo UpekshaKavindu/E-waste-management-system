@@ -41,6 +41,8 @@ export interface InventoryListItem {
   originType: OriginType;
   kind: ItemKind;
   verifiedWeightKg: number;
+  /** Above 1 for a received lot ("Laptop × 50"). */
+  quantity?: number;
   currentLocationId: string;
   currentLocationName: string;
   parentInventoryItemId: string | null;
@@ -77,6 +79,8 @@ export interface InventoryDetail {
   originType: OriginType;
   kind: ItemKind;
   verifiedWeightKg: number;
+  /** Above 1 for a received lot ("Laptop × 50"). */
+  quantity?: number;
   currentLocationId: string;
   currentLocationName: string;
   jobId: string | null;

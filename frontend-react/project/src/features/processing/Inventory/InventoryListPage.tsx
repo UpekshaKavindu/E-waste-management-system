@@ -347,6 +347,7 @@ const InventoryListPage: React.FC = () => {
                           className="font-semibold text-ink-900 hover:text-mint-700"
                         >
                           {item.itemType}
+                          {(item.quantity ?? 1) > 1 && <span className="font-normal text-ink-600"> × {item.quantity}</span>}
                         </Link>
                         {item.kind !== 'Unit' && <div className="text-[11px] text-ink-600">{ITEM_KIND_LABELS[item.kind]}</div>}
                       </td>

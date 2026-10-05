@@ -23,6 +23,7 @@ public interface IJobService
     Task<JobResponseDto> CompleteAsync(Guid jobId, Guid requestingUserId, CompleteJobDto dto);
     Task<List<JobResponseDto>> GetMyJobsAsync(Guid requestingUserId, JobStatus? status);
     Task<JobResponseDto?> GetByIdAsync(Guid jobId, Guid requestingUserId, bool isPrivileged);
+    Task<JobRouteDto?> GetRouteAsync(Guid jobId, Guid requestingUserId, decimal? fromLat, decimal? fromLng);
     Task<List<JobResponseDto>> GetAllAsync(JobStatus? status);
 
     // Staff/admin
@@ -250,6 +251,40 @@ public class JobService : IJobService
         return await ToDtoAsync(job);
     }
 
+    // Route from the collector to the pickup. The app sends the phone's position; without one the
+    // last location the collector reported is used.
+    public async Task<JobRouteDto?> GetRouteAsync(Guid jobId, Guid requestingUserId, decimal? fromLat, decimal? fromLng)
+    {
+        var job = await _db.Jobs.FindAsync(jobId);
+        if (job is null) return null;
+
+        var collector = await _db.Collectors.FirstOrDefaultAsync(c => c.UserId == requestingUserId);
+        if (collector is null || job.CollectorId != collector.CollectorId)
+            throw new UnauthorizedAccessException("You do not have permission to view this job.");
+
+        var originLat = fromLat ?? collector.CurrentLatitude;
+        var originLng = fromLng ?? collector.CurrentLongitude;
+
+        var dto = new JobRouteDto
+        {
+            OriginLatitude = originLat,
+            OriginLongitude = originLng,
+            PickupLatitude = job.PickupLatitude,
+            PickupLongitude = job.PickupLongitude
+        };
+
+        if (originLat is null || originLng is null || job.PickupLatitude is null || job.PickupLongitude is null)
+            return dto;
+
+        var route = await _geoService.GetRouteAsync(originLat.Value, originLng.Value, job.PickupLatitude.Value, job.PickupLongitude.Value);
+        if (route is null) return dto;
+
+        dto.DistanceKm = route.DistanceKm;
+        dto.DurationMinutes = route.DurationMinutes;
+        dto.Points = route.Points.Select(p => new[] { p.Lat, p.Lng }).ToList();
+        return dto;
+    }
+
     public async Task<List<JobResponseDto>> GetAllAsync(JobStatus? status)
     {
         var query = _db.Jobs.AsQueryable();
@@ -464,6 +499,34 @@ public class JobService : IJobService
         }
     }
 
+    // Collector bell: a job was offered to them (auto-match, re-match or staff pick). Never throws.
+    private async Task NotifyCollectorOfAssignmentAsync(Guid jobId, Guid collectorId)
+    {
+        try
+        {
+            var userId = await _db.Collectors
+                .Where(c => c.CollectorId == collectorId)
+                .Select(c => c.UserId)
+                .FirstOrDefaultAsync();
+            var address = await _db.Jobs
+                .Where(j => j.JobId == jobId)
+                .Select(j => j.PickupAddress)
+                .FirstOrDefaultAsync();
+            if (userId == default) return;
+
+            await _notifications.NotifyAsync(
+                userId,
+                "New job assigned",
+                $"Pickup at {address}. Accept or reject it from My Jobs.",
+                NotificationType.Info,
+                link: $"/collector/jobs/{jobId}");
+        }
+        catch
+        {
+            // notification is advisory — the assignment is already committed
+        }
+    }
+
     // Owner bell: a state change on their submission's pickup job. Never
     // throws, so a notification outage can't fail the job operation.
     private async Task NotifyOwnerSafeAsync(Guid submissionId, string title, string message, NotificationType type)
@@ -565,6 +628,9 @@ public class JobService : IJobService
             Reason = reason
         });
         await _db.SaveChangesAsync();
+
+        if (outcome == AssignmentOutcome.Assigned)
+            await NotifyCollectorOfAssignmentAsync(jobId, collectorId);
     }
 
     // Every write endpoint (accept/reject/complete) goes through this —
@@ -594,9 +660,17 @@ public class JobService : IJobService
     private async Task<JobResponseDto> ToDtoAsync(Job job) =>
         (await ToDtosAsync(new List<Job> { job }))[0];
 
-    // Resolves collector names in one query for the whole list.
+    // Resolves collector names (and which completed jobs the warehouse has received) in one query each.
     private async Task<List<JobResponseDto>> ToDtosAsync(List<Job> jobs)
     {
+        var completedIds = jobs.Where(j => j.Status == JobStatus.Completed).Select(j => j.JobId).ToList();
+        var receivedIds = completedIds.Count == 0
+            ? new HashSet<Guid>()
+            : (await _db.InventoryItems
+                .Where(i => i.JobId != null && completedIds.Contains(i.JobId.Value))
+                .Select(i => i.JobId!.Value)
+                .ToListAsync()).ToHashSet();
+
         var collectorIds = jobs.Where(j => j.CollectorId != null)
             .Select(j => j.CollectorId!.Value).Distinct().ToList();
 
@@ -614,6 +688,7 @@ public class JobService : IJobService
             var dto = ToDto(j);
             if (j.CollectorId is Guid id && names.TryGetValue(id, out var name))
                 dto.CollectorName = name;
+            dto.ReceivedAtWarehouse = receivedIds.Contains(j.JobId);
             return dto;
         }).ToList();
     }

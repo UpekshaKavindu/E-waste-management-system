@@ -15,6 +15,22 @@ export interface ReceivableJob {
   submissionCategory: string | null;
   /** That category matched to the item-type list; null when staff must choose the type. */
   suggestedItemType: string | null;
+  /** What the customer submitted — one row per item / CSV row. Empty → the job is received as a whole. */
+  items: ReceivableJobItem[];
+}
+
+export type SuggestionSource = 'name' | 'category' | 'ai' | 'submission';
+
+export interface ReceivableJobItem {
+  submissionItemId: string;
+  itemName: string;
+  description: string | null;
+  /** Units expected (CSV quantity; 1 for manual items). */
+  quantity: number;
+  /** Best guess for the whole row (CSV per-unit × quantity, else the AI's estimate) — used to split a total. */
+  expectedWeightKg: number | null;
+  suggestedItemType: string | null;
+  suggestionSource: SuggestionSource | null;
 }
 
 // POST /api/v1/inventory/job-collection/receive
@@ -34,16 +50,43 @@ export interface ReceiveDeliveryInput {
   collectorId: string;
   warehouseLocationId: string;
   notes?: string;
-  jobs: { jobId: string; verifiedWeightKg: number; itemType: string }[];
+  jobs: DeliveryJobInput[];
+}
+
+/** A job with items is received item by item; one without items as a whole (weight + type). */
+export type DeliveryJobInput =
+  | { jobId: string; items: DeliveryItemInput[] }
+  | { jobId: string; items: []; verifiedWeightKg: number; itemType: string };
+
+export interface DeliveryItemInput {
+  submissionItemId: string;
+  /** 0 = not brought. */
+  receivedQuantity: number;
+  itemType: string | null;
+  /** The whole row on the scale. */
+  verifiedWeightKg: number;
+}
+
+export interface DeliveryItemResult {
+  submissionItemId: string | null;
+  itemName: string;
+  expectedQuantity: number;
+  receivedQuantity: number;
+  /** Null when nothing was brought. */
+  inventoryItemId: string | null;
+  itemType: string | null;
+  verifiedWeightKg: number;
 }
 
 export interface DeliveryJobResult {
   jobId: string;
-  inventoryItemId: string;
-  itemType: string;
+  /** Sum of the rows — what the payment uses. */
   verifiedWeightKg: number;
   reportedWeightKg: number | null;
   discrepancyKg: number | null;
+  expectedQuantity: number;
+  receivedQuantity: number;
+  items: DeliveryItemResult[];
   paymentId: string;
   paymentAmount: number;
 }

@@ -150,8 +150,8 @@ public class CreateSubmissionDtoValidatorTests
 
     [Theory]
     [InlineData(1)]
-    [InlineData(10)]
-    public void One_to_ten_items_is_valid(int count)
+    [InlineData(3)]
+    public void One_to_three_items_is_valid(int count)
     {
         var dto = Valid();
         dto.Items = Items(count);
@@ -177,12 +177,12 @@ public class CreateSubmissionDtoValidatorTests
     }
 
     [Fact]
-    public void More_than_ten_items_is_rejected()
+    public void More_than_three_items_is_rejected()
     {
         var dto = Valid();
-        dto.Items = Items(11);
+        dto.Items = Items(4);
         _validator.TestValidate(dto).ShouldHaveValidationErrorFor(x => x.Items)
-            .WithErrorMessage("A submission can have at most 10 items.");
+            .WithErrorMessage("A submission can have at most 3 items.");
     }
 
     // ---------- Item fields ----------
@@ -247,4 +247,86 @@ public class CreateSubmissionDtoValidatorTests
         Enumerable.Range(1, count)
             .Select(i => new CreateSubmissionItemDto { ItemName = $"Item {i}", Description = "desc", ImageUrl = "" })
             .ToList();
+
+    // ---------- CSV source ----------
+
+    private static CreateSubmissionDto ValidCsv(int rows = 2) => new()
+    {
+        Source = SubmissionSources.Csv,
+        PickupAddress = "123 Galle Road, Colombo 03",
+        PhoneNumber = "0771234567",
+        // No Category / EstimatedWeight: a CSV submission's are worked out from its rows.
+        Items = Enumerable.Range(1, rows).Select(i => new CreateSubmissionItemDto
+        {
+            ItemName = $"Monitor {i}", Quantity = 40, EstimatedWeightKg = 4.5m, Category = "IT Equipment",
+        }).ToList(),
+    };
+
+    [Fact]
+    public void A_valid_csv_submission_passes_without_category_or_weight()
+    {
+        _validator.TestValidate(ValidCsv()).ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void Csv_allows_up_to_100_rows_but_not_101()
+    {
+        _validator.TestValidate(ValidCsv(100)).ShouldNotHaveValidationErrorFor(x => x.Items);
+        _validator.TestValidate(ValidCsv(101)).ShouldHaveValidationErrorFor(x => x.Items)
+            .WithErrorMessage("A CSV upload can have at most 100 rows.");
+    }
+
+    [Fact]
+    public void Csv_rows_need_only_a_name()
+    {
+        var dto = ValidCsv(1);
+        dto.Items[0] = new CreateSubmissionItemDto { ItemName = "Printer" };
+        _validator.TestValidate(dto).ShouldNotHaveAnyValidationErrors();
+
+        dto.Items[0].ItemName = "";
+        _validator.TestValidate(dto).ShouldHaveValidationErrorFor("Items[0].ItemName");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1001)]
+    public void Csv_quantity_must_be_1_to_1000(int quantity)
+    {
+        var dto = ValidCsv(1);
+        dto.Items[0].Quantity = quantity;
+        _validator.TestValidate(dto).ShouldHaveValidationErrorFor("Items[0].Quantity")
+            .WithErrorMessage("Quantity must be between 1 and 1000.");
+    }
+
+    [Fact]
+    public void Csv_unit_weight_when_given_must_be_positive()
+    {
+        var dto = ValidCsv(1);
+        dto.Items[0].EstimatedWeightKg = 0m;
+        _validator.TestValidate(dto).ShouldHaveValidationErrorFor("Items[0].EstimatedWeightKg");
+    }
+
+    [Fact]
+    public void Csv_rows_cannot_carry_photos()
+    {
+        var dto = ValidCsv(1);
+        dto.Items[0].ImageUrl = "https://example.com/a.jpg";
+        _validator.TestValidate(dto).ShouldHaveValidationErrorFor("Items[0].ImageUrl");
+    }
+
+    [Fact]
+    public void Manual_items_cannot_use_quantity()
+    {
+        var dto = Valid();
+        dto.Items[0].Quantity = 5;
+        _validator.TestValidate(dto).ShouldHaveValidationErrorFor("Items[0].Quantity");
+    }
+
+    [Fact]
+    public void Unknown_source_is_rejected()
+    {
+        var dto = Valid();
+        dto.Source = "Excel";
+        _validator.TestValidate(dto).ShouldHaveValidationErrorFor(x => x.Source);
+    }
 }

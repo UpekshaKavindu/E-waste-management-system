@@ -42,10 +42,10 @@ def validate_node(state: ValidatorState) -> ValidatorState:
         )
 
     # --- Value threshold ---
-    if analyzer.estimated_value_usd > rules.max_value_for_auto_usd:
+    if analyzer.estimated_value_lkr > rules.max_value_for_auto_lkr:
         reasons.append(
-            f"Estimated value ${analyzer.estimated_value_usd:,.2f} exceeds the "
-            f"auto-approval limit of ${rules.max_value_for_auto_usd:,.2f}."
+            f"Estimated value Rs. {analyzer.estimated_value_lkr:,.2f} exceeds the "
+            f"auto-approval limit of Rs. {rules.max_value_for_auto_lkr:,.2f}."
         )
 
     requires_human_approval = len(reasons) > 0

@@ -126,4 +126,48 @@ public class OpenStreetMapService : IGeoService
             return null;
         }
     }
+
+    public async Task<GeoRoute?> GetRouteAsync(
+        decimal originLat, decimal originLng,
+        decimal destLat, decimal destLng)
+    {
+        // lng,lat order again (see GetDistanceAsync); full GeoJSON geometry for the map line.
+        var url = $"{_osrmBaseUrl}/route/v1/driving/{originLng},{originLat};{destLng},{destLat}?overview=full&geometries=geojson";
+
+        try
+        {
+            using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+            requestMessage.Headers.UserAgent.ParseAdd(_userAgent);
+
+            var response = await _httpClient.SendAsync(requestMessage);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("OSRM route call failed with status {StatusCode} ({OriginLat},{OriginLng} -> {DestLat},{DestLng}).",
+                    response.StatusCode, originLat, originLng, destLat, destLng);
+                return null;
+            }
+
+            var body = await response.Content.ReadAsStringAsync();
+            var parsed = JsonSerializer.Deserialize<OsrmRouteResponse>(body);
+            if (parsed is null || parsed.Code != "Ok" || parsed.Routes.Count == 0)
+                return null;
+
+            var route = parsed.Routes[0];
+            var points = (route.Geometry?.Coordinates ?? new())
+                .Where(c => c.Count >= 2)
+                .Select(c => (Lat: c[1], Lng: c[0]))
+                .ToList();
+
+            return new GeoRoute(
+                Math.Round((decimal)route.Distance / 1000m, 2),
+                (int)Math.Ceiling(route.Duration / 60.0),
+                points);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "OSRM route threw an exception ({OriginLat},{OriginLng} -> {DestLat},{DestLng}).",
+                originLat, originLng, destLat, destLng);
+            return null;
+        }
+    }
 }

@@ -42,6 +42,8 @@ public class InventoryItemListItemResponse
     public string OriginType { get; set; } = string.Empty;
     public string Kind { get; set; } = string.Empty;
     public decimal VerifiedWeightKg { get; set; }
+    /// <summary>Units in this item — above 1 for a received lot ("Laptop × 50").</summary>
+    public int Quantity { get; set; } = 1;
     public Guid CurrentLocationId { get; set; }
     public string CurrentLocationName { get; set; } = string.Empty;
     public Guid? ParentInventoryItemId { get; set; }
@@ -77,10 +79,13 @@ public class InventoryItemDetailResponse
     public string OriginType { get; set; } = string.Empty;
     public string Kind { get; set; } = string.Empty;
     public decimal VerifiedWeightKg { get; set; }
+    /// <summary>Units in this item — above 1 for a received lot ("Laptop × 50").</summary>
+    public int Quantity { get; set; } = 1;
     public Guid CurrentLocationId { get; set; }
     public string CurrentLocationName { get; set; } = string.Empty;
     public Guid? JobId { get; set; }
     public Guid? SubmissionId { get; set; }
+    public Guid? SubmissionItemId { get; set; }
     public Guid? ExtraWasteReceiptId { get; set; }
     public Guid? ParentInventoryItemId { get; set; }
     public DateTime ReceivedAt { get; set; }

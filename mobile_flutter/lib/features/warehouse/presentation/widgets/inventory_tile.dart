@@ -31,7 +31,7 @@ class InventoryTile extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          item.itemType,
+                          item.quantity > 1 ? '${item.itemType} × ${item.quantity}' : item.itemType,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.ink900),
                         ),

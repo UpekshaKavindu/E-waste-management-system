@@ -27,7 +27,7 @@ export const receiveApi = {
         collectorId: input.collectorId,
         warehouseLocationId: input.warehouseLocationId,
         notes: input.notes?.trim() || null,
-        jobs: input.jobs.map((j) => ({ jobId: j.jobId, verifiedWeightKg: j.verifiedWeightKg, itemType: j.itemType })),
+        jobs: input.jobs,
       })
       .then((r) => r.data),
 

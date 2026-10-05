@@ -15,7 +15,7 @@ import '../../application/warehouse_providers.dart';
 import '../../data/processing_enums.dart';
 import '../../data/warehouse_models.dart';
 import '../widgets/inventory_tile.dart';
-import '../widgets/pill_tabs.dart';
+import '../../../../core/widgets/pill_tabs.dart';
 
 /// All inventory, newest first: search by item type, filter by kind and status, load more while scrolling.
 class InventoryListScreen extends ConsumerStatefulWidget {

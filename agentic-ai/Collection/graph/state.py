@@ -5,7 +5,7 @@ from schemas import CollectorMatch
 
 class MatcherState(TypedDict, total=False):
     workflow_id: str
-    estimated_value_usd: float
+    estimated_value_lkr: float
     already_escalated: bool
 
     ranked: list[CollectorMatch]   # already ranked by the backend, real distance/ETA

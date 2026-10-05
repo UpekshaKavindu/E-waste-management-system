@@ -26,7 +26,7 @@ class MatcherRunRequest(BaseModel):
     pickup_latitude: float = Field(alias="pickupLatitude")
     pickup_longitude: float = Field(alias="pickupLongitude")
     estimated_weight_kg: float = Field(alias="estimatedWeightKg")
-    estimated_value_usd: float = Field(alias="estimatedValueUsd", default=0.0)
+    estimated_value_lkr: float = Field(alias="estimatedValueLkr", default=0.0)
     already_escalated: bool = Field(
         alias="alreadyEscalated", default=False,
         description="True if Validator already flagged this workflow for human review — "

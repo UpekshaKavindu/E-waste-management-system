@@ -9,11 +9,12 @@ public interface IAdminAccountService
 {
     Task<IReadOnlyList<AdminAccountResponse>> ListAsync(CancellationToken cancellationToken = default);
     Task<AdminAccountResponse> CreateAsync(CreateAdminRequest request, CancellationToken cancellationToken = default);
-    Task<AdminAccountResponse> UpdateAsync(Guid userId, UpdateAdminRequest request, CancellationToken cancellationToken = default);
+    Task<AdminAccountResponse> UpdateAsync(Guid userId, Guid actingAdminId, UpdateAdminRequest request, CancellationToken cancellationToken = default);
     Task DeleteAsync(Guid userId, Guid actingAdminId, CancellationToken cancellationToken = default);
 }
 
-// Admin accounts are never self-registered (see AuthService); an existing admin adds, edits and removes them.
+// Admin accounts are never self-registered (see AuthService); an existing admin adds and removes them.
+// Each admin can edit only their own details and password, never another admin's.
 public class AdminAccountService : IAdminAccountService
 {
     private readonly ApplicationDbContext _db;
@@ -49,8 +50,11 @@ public class AdminAccountService : IAdminAccountService
         return Map(user);
     }
 
-    public async Task<AdminAccountResponse> UpdateAsync(Guid userId, UpdateAdminRequest request, CancellationToken cancellationToken = default)
+    public async Task<AdminAccountResponse> UpdateAsync(Guid userId, Guid actingAdminId, UpdateAdminRequest request, CancellationToken cancellationToken = default)
     {
+        if (userId != actingAdminId)
+            throw new InvalidOperationException("You can only edit your own admin account.");
+
         var user = await FindAdminAsync(userId, cancellationToken);
         var email = request.Email.Trim();
         await EnsureEmailFreeAsync(email, userId, cancellationToken);

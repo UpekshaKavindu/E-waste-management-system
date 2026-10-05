@@ -18,6 +18,11 @@ public class PaymentContext
     /// <summary>Accepted lines only — these are the lines the amount is calculated from.</summary>
     public IReadOnlyList<PaymentLineItem> LineItems { get; init; } = Array.Empty<PaymentLineItem>();
     public IReadOnlyList<RejectedLineItem> RejectedLineItems { get; init; } = Array.Empty<RejectedLineItem>();
+
+    /// <summary>Job only: units expected vs. brought, and what was short — recorded, never priced.</summary>
+    public int? ExpectedQuantity { get; init; }
+    public int? ReceivedQuantity { get; init; }
+    public IReadOnlyList<string> NotReceived { get; init; } = Array.Empty<string>();
 }
 
 public record PaymentCalculationResult(decimal Amount, PaymentCalculationSnapshot Snapshot);

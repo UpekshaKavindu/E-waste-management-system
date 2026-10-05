@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/auth/auth_controller.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
@@ -15,7 +16,8 @@ import '../application/submissions_providers.dart';
 import '../data/submission_field_errors.dart';
 import '../data/submission_models.dart';
 
-const _maxItems = 10;
+// Same limit as the backend (CreateSubmissionDtoValidator.MaxItems): each item is classified on its own.
+const _maxItems = 3;
 
 /// Submit form for Household/Corporate: address, phone, category, weight, and 1-10 repeatable
 /// items — the same fields and limits as the web app's SubmitPage (CreateSubmissionDtoValidator
@@ -110,6 +112,8 @@ class _SubmitItemScreenState extends ConsumerState<SubmitItemScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // CSV upload (up to 100 rows) is a web-only, corporate-only feature; households never see this.
+    final isCorporate = ref.watch(authControllerProvider).user?.role.toLowerCase() == 'corporate';
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
@@ -118,6 +122,15 @@ class _SubmitItemScreenState extends ConsumerState<SubmitItemScreen> {
           subtitle: 'Our AI assesses hazard level and category automatically.',
           icon: LucideIcons.cpu,
         ),
+        if (isCorporate) ...[
+          const Notice(
+            tone: NoticeTone.info,
+            title: 'Submitting a lot of items?',
+            message: 'Bulk upload is available on the web: sign in there and use "Upload CSV" '
+                'to send up to 100 rows in one submission.',
+          ),
+          const SizedBox(height: 12),
+        ],
         GlassCard(
           child: Form(
             key: _formKey,

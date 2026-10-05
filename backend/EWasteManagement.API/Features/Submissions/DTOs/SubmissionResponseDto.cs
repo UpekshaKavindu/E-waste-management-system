@@ -1,3 +1,5 @@
+using EWasteManagement.API.Features.Workflow.DTOs;
+
 namespace EWasteManagement.Api.Dtos
 {
     // What the submissions API returns. Status is never read from the
@@ -13,6 +15,7 @@ namespace EWasteManagement.Api.Dtos
         public string PickupAddress { get; set; } = string.Empty;
         public string PhoneNumber { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
+        public string Source { get; set; } = SubmissionSources.Manual;
         public List<SubmissionItemResponseDto> Items { get; set; } = new();
 
         /// <summary>Machine-readable status code, e.g. "Analyzing", "CollectorAssigned".</summary>
@@ -36,6 +39,9 @@ namespace EWasteManagement.Api.Dtos
         public string ItemName { get; set; } = string.Empty;
         public string? Description { get; set; }
         public string ImageUrl { get; set; } = string.Empty;
+        public int Quantity { get; set; } = 1;
+        public decimal? EstimatedWeightKg { get; set; }
+        public string? CategoryHint { get; set; }
     }
 
     public class SubmissionWorkflowDto
@@ -53,7 +59,10 @@ namespace EWasteManagement.Api.Dtos
         public string WasteCategory { get; set; } = string.Empty;
         public string HazardLevel { get; set; } = string.Empty;
         public decimal EstimatedVolumeKg { get; set; }
-        public decimal EstimatedValueUsd { get; set; }
+        public decimal EstimatedValueLkr { get; set; }
         public double ConfidenceScore { get; set; }
+
+        // Each item's own classification; empty for submissions analysed before per-item analysis.
+        public List<AnalyzedItem> Items { get; set; } = new();
     }
 }

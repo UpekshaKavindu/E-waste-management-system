@@ -19,4 +19,15 @@ public interface IGeoService
     Task<(decimal DistanceKm, int DurationMinutes)?> GetDistanceAsync(
         decimal originLat, decimal originLng,
         decimal destLat, decimal destLng);
+
+    /// <summary>
+    /// The driving route itself (road geometry), for drawing on a map. Null on
+    /// no route or a network/API failure.
+    /// </summary>
+    Task<GeoRoute?> GetRouteAsync(
+        decimal originLat, decimal originLng,
+        decimal destLat, decimal destLng);
 }
+
+/// <param name="Points">The road path as (lat, lng), origin first.</param>
+public record GeoRoute(decimal DistanceKm, int DurationMinutes, IReadOnlyList<(double Lat, double Lng)> Points);

@@ -69,12 +69,25 @@ export interface ApprovalEntry {
 
 // ---- parsed agent results (all fields optional: the stored JSON belongs to the agent services) ----
 
+/** One item or CSV row; weight and value are for the whole row (per unit × quantity). */
+export interface AnalyzerItemResult {
+  itemName: string | null;
+  quantity: number | null;
+  wasteCategory: string | null;
+  hazardLevel: string | null;
+  estimatedVolumeKg: number | null;
+  estimatedValueLkr: number | null;
+  confidenceScore: number | null;
+}
+
+/** The whole submission (worst hazard, totals, lowest confidence) plus each item's own result. */
 export interface AnalyzerResult {
   wasteCategory: string | null;
   hazardLevel: string | null;
   estimatedVolumeKg: number | null;
-  estimatedValueUsd: number | null;
+  estimatedValueLkr: number | null;
   confidenceScore: number | null;
+  items: AnalyzerItemResult[];
 }
 
 export interface ValidatorResult {

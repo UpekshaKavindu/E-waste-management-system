@@ -20,6 +20,7 @@ public class InventoryItemConfiguration : IEntityTypeConfiguration<InventoryItem
             t.HasCheckConstraint(
                 "ck_inventory_items_kind",
                 "kind IN ('unit','component','material')");
+            t.HasCheckConstraint("ck_inventory_items_quantity", "quantity >= 1");
         });
 
         builder.HasKey(x => x.Id);
@@ -47,16 +48,24 @@ public class InventoryItemConfiguration : IEntityTypeConfiguration<InventoryItem
 
         builder.Property(x => x.JobId).HasColumnName("job_id");
         builder.Property(x => x.SubmissionId).HasColumnName("submission_id");
+        builder.Property(x => x.SubmissionItemId).HasColumnName("submission_item_id");
+        builder.Property(x => x.Quantity).HasColumnName("quantity").HasDefaultValue(1).IsRequired();
         builder.Property(x => x.ExtraWasteReceiptId).HasColumnName("extra_waste_receipt_id");
         builder.Property(x => x.ParentInventoryItemId).HasColumnName("parent_inventory_item_id");
         builder.Property(x => x.ItemType).HasColumnName("item_type").HasMaxLength(50).IsRequired();
         builder.Property(x => x.VerifiedWeightKg).HasColumnName("verified_weight_kg").HasColumnType("decimal(10,3)");
         builder.Property(x => x.CurrentLocationId).HasColumnName("current_location_id").IsRequired();
-        // A job can only ever become one inventory item. The service pre-checks this too, but this
-        // is the real backstop if two requests for the same job land at the same instant.
+        // Each item of a job can only be received once, and a job received as a whole only once.
+        // The service pre-checks this too, but these are the real backstop if two requests for the
+        // same job land at the same instant.
+        builder.HasIndex(x => new { x.JobId, x.SubmissionItemId })
+            .IsUnique()
+            .HasFilter("job_id IS NOT NULL AND submission_item_id IS NOT NULL")
+            .HasDatabaseName("IX_inventory_items_job_id_submission_item_id");
         builder.HasIndex(x => x.JobId)
             .IsUnique()
-            .HasFilter("job_id IS NOT NULL");
+            .HasFilter("job_id IS NOT NULL AND submission_item_id IS NULL")
+            .HasDatabaseName("IX_inventory_items_job_id_whole_job");
 
         builder.HasOne(x => x.CurrentLocation)
             .WithMany()

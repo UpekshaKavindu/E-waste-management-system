@@ -727,6 +727,12 @@ namespace EWasteManagement.API.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("parent_inventory_item_id");
 
+                    b.Property<int>("Quantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("quantity");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -736,6 +742,10 @@ namespace EWasteManagement.API.Migrations
                     b.Property<Guid?>("SubmissionId")
                         .HasColumnType("uuid")
                         .HasColumnName("submission_id");
+
+                    b.Property<Guid?>("SubmissionItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submission_item_id");
 
                     b.Property<decimal>("VerifiedWeightKg")
                         .HasColumnType("decimal(10,3)")
@@ -755,15 +765,23 @@ namespace EWasteManagement.API.Migrations
 
                     b.HasIndex("JobId")
                         .IsUnique()
-                        .HasFilter("job_id IS NOT NULL");
+                        .HasDatabaseName("IX_inventory_items_job_id_whole_job")
+                        .HasFilter("job_id IS NOT NULL AND submission_item_id IS NULL");
 
                     b.HasIndex("ParentInventoryItemId");
+
+                    b.HasIndex("JobId", "SubmissionItemId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_inventory_items_job_id_submission_item_id")
+                        .HasFilter("job_id IS NOT NULL AND submission_item_id IS NOT NULL");
 
                     b.ToTable("inventory_items", null, t =>
                         {
                             t.HasCheckConstraint("ck_inventory_items_kind", "kind IN ('unit','component','material')");
 
                             t.HasCheckConstraint("ck_inventory_items_origin_type", "origin_type IN ('jobcollection','extrawaste')");
+
+                            t.HasCheckConstraint("ck_inventory_items_quantity", "quantity >= 1");
 
                             t.HasCheckConstraint("ck_inventory_items_status", "status IN ('received','sorting','dismantling','classified','readyforsale','exportonly','onhold','recovered')");
                         });
@@ -1867,6 +1885,10 @@ namespace EWasteManagement.API.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
@@ -1885,8 +1907,14 @@ namespace EWasteManagement.API.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("CategoryHint")
+                        .HasColumnType("text");
+
                     b.Property<string>("Description")
                         .HasColumnType("text");
+
+                    b.Property<decimal?>("EstimatedWeightKg")
+                        .HasColumnType("numeric");
 
                     b.Property<string>("ImageUrl")
                         .IsRequired()
@@ -1895,6 +1923,12 @@ namespace EWasteManagement.API.Migrations
                     b.Property<string>("ItemName")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("SubmissionId")
                         .HasColumnType("uuid");

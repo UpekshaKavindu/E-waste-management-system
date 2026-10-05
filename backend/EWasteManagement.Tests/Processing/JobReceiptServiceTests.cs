@@ -1,6 +1,7 @@
 using EWasteManagement.Api.Entities;
 using EWasteManagement.API.Features.Auth.Entities;
 using EWasteManagement.API.Features.Collection.Entities;
+using EWasteManagement.API.Features.Notifications.Services;
 using EWasteManagement.API.Features.Processing.DTOs;
 using EWasteManagement.API.Features.Processing.Entities;
 using EWasteManagement.API.Features.Processing.Exceptions;
@@ -56,7 +57,7 @@ public class JobReceiptServiceTests : IAsyncLifetime
         var rates = new RatePolicyLookupService(_db);
         var calculators = new IPaymentCalculator[] { new JobPaymentCalculator(rates), new ExtraWastePaymentCalculator(rates) };
         var paymentService = new CollectorPaymentService(_db, calculators);
-        return new JobReceiptService(_db, new FakeJobVerificationService(verification), paymentService, new ItemTypeCatalogService(_db));
+        return new JobReceiptService(_db, new FakeJobVerificationService(verification), paymentService, new ItemTypeCatalogService(_db), new NotificationService(_db));
     }
 
     [Fact]

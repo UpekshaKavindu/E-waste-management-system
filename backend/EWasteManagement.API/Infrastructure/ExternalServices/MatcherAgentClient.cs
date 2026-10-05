@@ -6,7 +6,7 @@ public interface IMatcherAgentClient
 {
     Task<MatcherAgentResult> RunAsync(
         Guid workflowId, decimal pickupLatitude, decimal pickupLongitude,
-        decimal estimatedWeightKg, decimal estimatedValueUsd, bool alreadyEscalated,
+        decimal estimatedWeightKg, decimal estimatedValueLkr, bool alreadyEscalated,
         List<Guid>? excludeCollectorIds = null, CancellationToken ct = default);
 }
 
@@ -29,7 +29,7 @@ public class MatcherAgentClient : IMatcherAgentClient
 
     public async Task<MatcherAgentResult> RunAsync(
         Guid workflowId, decimal pickupLatitude, decimal pickupLongitude,
-        decimal estimatedWeightKg, decimal estimatedValueUsd, bool alreadyEscalated,
+        decimal estimatedWeightKg, decimal estimatedValueLkr, bool alreadyEscalated,
         List<Guid>? excludeCollectorIds = null, CancellationToken ct = default)
     {
         var body = new
@@ -38,7 +38,7 @@ public class MatcherAgentClient : IMatcherAgentClient
             pickupLatitude,
             pickupLongitude,
             estimatedWeightKg,
-            estimatedValueUsd,
+            estimatedValueLkr,
             alreadyEscalated,
             excludeCollectorIds = excludeCollectorIds ?? new List<Guid>()
         };

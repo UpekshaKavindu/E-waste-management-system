@@ -23,4 +23,32 @@ public class ReceivableJobResponse
     /// Null when the category is not on the list — staff must choose the type.
     /// </summary>
     public string? SuggestedItemType { get; set; }
+
+    /// <summary>
+    /// What the customer submitted, in order — one row per item or CSV row. The warehouse receives
+    /// each one separately. Empty only for a job whose submission has no items (received as a whole).
+    /// </summary>
+    public List<ReceivableJobItem> Items { get; set; } = new();
+}
+
+public class ReceivableJobItem
+{
+    public Guid SubmissionItemId { get; set; }
+    public string ItemName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+
+    /// <summary>Units expected (CSV quantity; 1 for manual items).</summary>
+    public int Quantity { get; set; } = 1;
+
+    /// <summary>
+    /// Best guess at the whole row's weight, for splitting a total across rows: the customer's CSV
+    /// per-unit weight × quantity, else the Analyzer's estimate for the item. Null when neither exists.
+    /// </summary>
+    public decimal? ExpectedWeightKg { get; set; }
+
+    /// <summary>A type from the item-type list, pre-selected on the form. Null when nothing matched.</summary>
+    public string? SuggestedItemType { get; set; }
+
+    /// <summary>What the suggestion came from: "name", "category", "ai" or "submission".</summary>
+    public string? SuggestionSource { get; set; }
 }

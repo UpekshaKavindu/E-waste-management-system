@@ -9,6 +9,7 @@ public interface ICollectorService
 {
     Task<CollectorResponseDto> CreateProfileAsync(Guid userId, CreateCollectorProfileDto dto);
     Task<CollectorResponseDto?> GetByUserIdAsync(Guid userId);
+    Task<CollectorResponseDto> UpdateMyProfileAsync(Guid userId, UpdateCollectorProfileDto dto);
     Task<CollectorResponseDto?> GetByIdAsync(Guid collectorId);
     Task<List<CollectorResponseDto>> GetAllAsync(bool? isAvailable);
     Task<CollectorResponseDto> UpdateAvailabilityAsync(Guid collectorId, Guid requestingUserId, UpdateAvailabilityDto dto);
@@ -50,6 +51,35 @@ public class CollectorService : ICollectorService
     {
         var collector = await _db.Collectors.FirstOrDefaultAsync(c => c.UserId == userId);
         return collector is null ? null : await ToDtoAsync(collector);
+    }
+
+    // Name and phone live on the User row, vehicle and capacity on the Collector row; saved together.
+    public async Task<CollectorResponseDto> UpdateMyProfileAsync(Guid userId, UpdateCollectorProfileDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.FullName))
+            throw new ArgumentException("FullName is required.");
+
+        if (string.IsNullOrWhiteSpace(dto.VehicleType))
+            throw new ArgumentException("VehicleType is required.");
+
+        if (dto.CapacityKg <= 0)
+            throw new ArgumentException("CapacityKg must be greater than zero.");
+
+        var collector = await _db.Collectors.FirstOrDefaultAsync(c => c.UserId == userId)
+            ?? throw new KeyNotFoundException("No collector profile exists for this user.");
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId)
+            ?? throw new KeyNotFoundException("User not found.");
+
+        user.FullName = dto.FullName.Trim();
+        user.Phone = string.IsNullOrWhiteSpace(dto.Phone) ? null : dto.Phone.Trim();
+        user.UpdatedAt = DateTime.UtcNow;
+
+        collector.VehicleType = dto.VehicleType.Trim();
+        collector.CapacityKg = dto.CapacityKg;
+        collector.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        return await ToDtoAsync(collector);
     }
 
     public async Task<CollectorResponseDto?> GetByIdAsync(Guid collectorId)

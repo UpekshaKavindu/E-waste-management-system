@@ -9,7 +9,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/glass_card.dart';
+import '../../../../core/widgets/greeting_header.dart';
 import '../../../../core/widgets/layout.dart';
+import '../../../notifications/notification_bell.dart';
 import '../../application/warehouse_providers.dart';
 import '../../data/processing_enums.dart';
 import '../warehouse_shell.dart';
@@ -29,11 +31,10 @@ class WarehouseHomeScreen extends ConsumerWidget {
     return WarehousePage(
       onRefresh: () => ref.refresh(warehouseSummaryProvider.future),
       children: [
-        PageHeader(
-          title: 'Warehouse',
-          subtitle: 'Hi ${user?.firstName ?? ''} · Processing & Inventory',
-          icon: LucideIcons.recycle,
+        GreetingHeader(
+          name: user?.fullName ?? '',
           actions: [
+            const NotificationBell(),
             IconButton(
               tooltip: 'Sign out',
               onPressed: () => _confirmSignOut(context, ref),

@@ -55,6 +55,26 @@ public class CollectorsController : ControllerBase
         return result is null ? NotFound(new { message = "No collector profile exists for this user yet." }) : Ok(result);
     }
 
+    // PUT /api/v1/collectors/me
+    // The logged-in collector edits their own name, phone, vehicle and capacity.
+    [HttpPut("me")]
+    [Authorize(Roles = "Collector")]
+    public async Task<ActionResult<CollectorResponseDto>> UpdateMe(UpdateCollectorProfileDto dto)
+    {
+        try
+        {
+            return Ok(await _collectorService.UpdateMyProfileAsync(CurrentUserId, dto));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
     // GET /api/v1/collectors?isAvailable=true
     // Staff/admin list for the collectors page, with names and current load.
     [HttpGet]

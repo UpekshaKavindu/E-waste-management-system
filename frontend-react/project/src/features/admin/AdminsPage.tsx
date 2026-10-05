@@ -24,7 +24,7 @@ import {
 
 const EMPTY_FORM: AdminAccountInput = { fullName: '', email: '', phone: '', password: '' };
 
-/** Admin only: add, edit and remove admin accounts. Admins cannot self-register. */
+/** Admin only: add and remove admin accounts, and edit your own. Admins cannot self-register. */
 const AdminsPage: React.FC = () => {
   const me = useCurrentUser();
   const [admins, setAdmins] = useState<AdminAccount[]>([]);
@@ -121,7 +121,7 @@ const AdminsPage: React.FC = () => {
     <div>
       <PageHeader
         title="Admins"
-        subtitle="Admin accounts cannot be self-registered. Add, edit or remove them here."
+        subtitle="Admin accounts cannot be self-registered. Add or remove them here; you can edit only your own details."
         icon={ShieldCheck}
         actions={
           <>
@@ -174,10 +174,11 @@ const AdminsPage: React.FC = () => {
                     <td className={`${tableCellClass} whitespace-nowrap`}>{formatDate(a.createdAt)}</td>
                     <td className={`${tableCellClass} text-right`}>
                       <div className="inline-flex gap-2">
-                        <button type="button" className={`${btnSecondary} ${btnSmall}`} onClick={() => openEdit(a)}>
-                          <Pencil size={12} /> Edit
-                        </button>
-                        {a.userId !== me?.userId && (
+                        {a.userId === me?.userId ? (
+                          <button type="button" className={`${btnSecondary} ${btnSmall}`} onClick={() => openEdit(a)}>
+                            <Pencil size={12} /> Edit
+                          </button>
+                        ) : (
                           <button
                             type="button"
                             className={`${btnSecondary} ${btnSmall}`}

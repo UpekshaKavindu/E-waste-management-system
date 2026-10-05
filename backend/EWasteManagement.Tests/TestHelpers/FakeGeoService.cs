@@ -34,4 +34,14 @@ public class FakeGeoService : IGeoService
             : DefaultDistance;
         return Task.FromResult(result);
     }
+
+    // A straight line between the two points, with the configured distance.
+    public Task<GeoRoute?> GetRouteAsync(decimal originLat, decimal originLng, decimal destLat, decimal destLng)
+    {
+        var distance = _distances.TryGetValue((originLat, originLng), out var configured) ? configured : DefaultDistance;
+        return Task.FromResult(distance is null
+            ? null
+            : new GeoRoute(distance.Value.DistanceKm, distance.Value.DurationMinutes,
+                new[] { ((double)originLat, (double)originLng), ((double)destLat, (double)destLng) }));
+    }
 }

@@ -52,7 +52,10 @@ public class JobPaymentCalculator : IPaymentCalculator
                 DistanceKm = context.DistanceKm,
                 DistanceUsedKm = distanceUsed,
                 DistanceRatePerKm = PerKmRate,
-                DistanceAmount = distanceAmount
+                DistanceAmount = distanceAmount,
+                ExpectedQuantity = context.ExpectedQuantity,
+                ReceivedQuantity = context.ReceivedQuantity,
+                NotReceived = context.NotReceived.ToList()
             }
         };
 

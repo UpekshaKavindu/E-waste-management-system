@@ -11,6 +11,9 @@ namespace EWasteManagement.Api.Entities
         public string PhoneNumber { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        // "Manual" (item form) or "Csv" (corporate spreadsheet upload) — see SubmissionSources.
+        public string Source { get; set; } = "Manual";
+
         public ICollection<SubmissionItem> Items { get; set; } = new List<SubmissionItem>();
     }
 }

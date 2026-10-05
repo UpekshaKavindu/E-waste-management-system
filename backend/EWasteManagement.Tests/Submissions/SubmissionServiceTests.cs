@@ -113,7 +113,7 @@ public class SubmissionServiceTests : IAsyncLifetime
         var pending = await SeedAsync(_alice, WorkflowStatus.PendingApproval, analysis: new AnalyzerResultRequest
         {
             WasteCategory = "Batteries", HazardLevel = "High",
-            EstimatedVolumeKg = 2.5m, EstimatedValueUsd = 40m, ConfidenceScore = 0.9,
+            EstimatedVolumeKg = 2.5m, EstimatedValueLkr = 40m, ConfidenceScore = 0.9,
         });
         var rejected = await SeedAsync(_bob, WorkflowStatus.Rejected);
         var failed = await SeedAsync(_bob, WorkflowStatus.Failed);
@@ -255,6 +255,74 @@ public class SubmissionServiceTests : IAsyncLifetime
     }
 
     // ---------- Helpers ----------
+
+    // ---------- CSV submissions ----------
+
+    private static CreateSubmissionDto CsvDto() => new()
+    {
+        Source = SubmissionSources.Csv,
+        PickupAddress = "12 Main St, Colombo",
+        PhoneNumber = "0771234567",
+        Items = new()
+        {
+            new CreateSubmissionItemDto { ItemName = "Dell monitor", Quantity = 40, EstimatedWeightKg = 4.5m, Category = "it equipment" },
+            new CreateSubmissionItemDto { ItemName = "UPS battery", Quantity = 10, EstimatedWeightKg = 12m, Category = "Batteries" },
+            new CreateSubmissionItemDto { ItemName = "Keyboard", Quantity = 25, Category = "IT Equipment" },
+            new CreateSubmissionItemDto { ItemName = "Cables", Quantity = 1, Category = "Not a real category" },
+        },
+    };
+
+    [Theory]
+    [InlineData("Household")]
+    [InlineData("Collector")]
+    public async Task Csv_from_a_non_corporate_account_is_refused(string role)
+    {
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _service.CreateSubmissionAsync(CsvDto(), _alice, role));
+
+        Assert.Empty(_orchestrator.Started);
+        Assert.Equal(0, await _db.Submissions.CountAsync());
+    }
+
+    [Fact]
+    public async Task Csv_from_a_corporate_account_keeps_rows_in_order_with_their_quantities()
+    {
+        var result = await _service.CreateSubmissionAsync(CsvDto(), _alice, "Corporate");
+
+        Assert.Equal(SubmissionSources.Csv, result.Source);
+        Assert.Equal(new[] { "Dell monitor", "UPS battery", "Keyboard", "Cables" }, result.Items.Select(i => i.ItemName));
+        Assert.Equal(new[] { 40, 10, 25, 1 }, result.Items.Select(i => i.Quantity));
+        Assert.Equal(4.5m, result.Items[0].EstimatedWeightKg);
+        Assert.Single(_orchestrator.Started);
+    }
+
+    [Fact]
+    public async Task Csv_category_is_the_most_common_known_row_category_and_weight_is_the_row_total()
+    {
+        var result = await _service.CreateSubmissionAsync(CsvDto(), _alice, "Corporate");
+
+        Assert.Equal("IT Equipment", result.Category);           // 2 rows (case-insensitive) beat 1
+        Assert.Equal(40 * 4.5m + 10 * 12m, result.EstimatedWeight); // rows without a weight add nothing
+    }
+
+    [Fact]
+    public async Task Csv_with_no_known_category_falls_back_to_other()
+    {
+        var dto = CsvDto();
+        dto.Items.ForEach(i => i.Category = null);
+
+        var result = await _service.CreateSubmissionAsync(dto, _alice, "Corporate");
+
+        Assert.Equal(SubmissionCategories.Other, result.Category);
+    }
+
+    [Fact]
+    public async Task Corporate_accounts_can_still_submit_manually()
+    {
+        var result = await _service.CreateSubmissionAsync(NewDto(), _alice, "Corporate");
+
+        Assert.Equal(SubmissionSources.Manual, result.Source);
+        Assert.Equal(1, result.Items.Single().Quantity);
+    }
 
     private static CreateSubmissionDto NewDto() => new()
     {

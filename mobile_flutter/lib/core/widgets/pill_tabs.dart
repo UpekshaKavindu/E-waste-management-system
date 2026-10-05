@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/glass_card.dart';
+import '../theme/app_colors.dart';
+import 'glass_card.dart';
 
 /// The web app's pill tab list (`rounded-full px-4 py-2`, selected = mint-600): a few big,
 /// equal-width choices in one row.

@@ -59,6 +59,13 @@ public class JobCalculationSnapshot
     public decimal DistanceRatePerKm { get; set; }
     /// <summary>DistanceUsedKm × DistanceRatePerKm.</summary>
     public decimal DistanceAmount { get; set; }
+
+    /// <summary>Units the submission listed vs. units the collector brought (null before per-item receiving).</summary>
+    public int? ExpectedQuantity { get; set; }
+    public int? ReceivedQuantity { get; set; }
+
+    /// <summary>Items short, e.g. "Router (0 of 1)". Not priced: pay already follows the weight brought.</summary>
+    public List<string> NotReceived { get; set; } = new();
 }
 
 public class ExtraWasteCalculationSnapshot

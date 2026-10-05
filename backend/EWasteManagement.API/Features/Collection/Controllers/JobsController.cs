@@ -71,6 +71,41 @@ public class JobsController : ControllerBase
         }
     }
 
+    // GET /api/v1/jobs/{id}/route?fromLat=..&fromLng=..
+    // Road route from the collector to the pickup, for the map on the job screen.
+    [HttpGet("{id:guid}/route")]
+    [Authorize(Roles = "Collector")]
+    public async Task<ActionResult<JobRouteDto>> GetRoute(Guid id, [FromQuery] decimal? fromLat, [FromQuery] decimal? fromLng)
+    {
+        try
+        {
+            var result = await _jobService.GetRouteAsync(id, CurrentUserId, fromLat, fromLng);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
+    }
+
+    // GET /api/v1/jobs/{id}/collector-info
+    // Customer contact (once accepted) and the payment for this job, for the assigned collector.
+    [HttpGet("{id:guid}/collector-info")]
+    [Authorize(Roles = "Collector")]
+    public async Task<ActionResult<CollectorJobInfoDto>> GetCollectorInfo(
+        Guid id, [FromServices] ICollectorJobInfoService infoService, CancellationToken ct)
+    {
+        try
+        {
+            var result = await infoService.GetAsync(id, CurrentUserId, ct);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
+    }
+
     // GET /api/v1/jobs?status=Completed
     [HttpGet]
     [Authorize(Roles = "Staff,Admin")]

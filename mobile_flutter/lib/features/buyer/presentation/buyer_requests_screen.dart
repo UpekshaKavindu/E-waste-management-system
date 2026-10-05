@@ -1,322 +1,286 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/app_background.dart';
+import '../../../core/utils/format.dart';
+import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/feedback.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/layout.dart';
+import '../../../core/widgets/pill_tabs.dart';
+import '../../notifications/notification_bell.dart';
 import '../application/buyer_providers.dart';
 import '../data/buyer_models.dart';
+import 'buyer_shell.dart';
+import 'request_material_sheet.dart';
+import 'widgets/request_status.dart';
 
-class BuyerRequestsScreen extends ConsumerWidget {
+/// Which slice of the portfolio the list is showing.
+enum RequestFilter {
+  all('All'),
+  open('In progress'),
+  plans('Plan ready'),
+  fulfilled('Fulfilled'),
+  closed('Cancelled');
+
+  const RequestFilter(this.label);
+
+  final String label;
+
+  bool matches(MaterialRequest request) => switch (this) {
+        RequestFilter.all => true,
+        RequestFilter.open => request.stage.isOpen && !request.hasPlan,
+        RequestFilter.plans => request.hasPlan || request.stage == RequestStage.orderPlaced,
+        RequestFilter.fulfilled => request.stage == RequestStage.fulfilled,
+        RequestFilter.closed => request.stage == RequestStage.cancelled,
+      };
+}
+
+/// The buyer's material-request portfolio: what's open, what's been planned, and a way into
+/// the full view of any single request. Pull to refresh; the unread bell is in the header.
+class BuyerRequestsScreen extends ConsumerStatefulWidget {
   const BuyerRequestsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final requests = ref.watch(buyerRequestsProvider);
-    final user = ref.watch(authControllerProvider).user;
-    return Scaffold(
-      extendBody: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Buyer portal'),
-        actions: [
-          IconButton(
-            tooltip: 'Sign out',
-            onPressed: () => ref.read(authControllerProvider.notifier).signOut(),
-            icon: const Icon(LucideIcons.logOut),
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          const AppBackground(),
-          RefreshIndicator(
-            color: AppColors.mint600,
-            onRefresh: () => ref.refresh(buyerRequestsProvider.future),
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
-              children: [
-                ResponsiveCenter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text('Hello ${user?.firstName ?? ''}', style: AppText.display(23)),
-                      const SizedBox(height: 4),
-                      const Text('Request recovered materials and follow each request through fulfillment.', style: AppText.body),
-                      const SizedBox(height: 18),
-                      FilledButton.icon(
-                        onPressed: () async {
-                          final created = await showModalBottomSheet<bool>(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (_) => const _RequestMaterialSheet(),
-                          );
-                          if (created == true) ref.invalidate(buyerRequestsProvider);
-                        },
-                        icon: const Icon(LucideIcons.packagePlus, size: 19),
-                        label: const Text('Request material'),
-                      ),
-                      const SizedBox(height: 22),
-                      Row(
-                        children: [
-                          const Expanded(child: SectionTitle('My material requests')),
-                          if (requests.hasValue) Text('${requests.value!.length}', style: AppText.small),
-                        ],
-                      ),
-                      const SizedBox(height: 9),
-                      switch (requests) {
-                        AsyncData(:final value) => _RequestList(
-                            requests: value,
-                            onCancel: (request) => _cancel(context, ref, request),
-                          ),
-                        AsyncError(:final error) => _RequestError(
-                            message: apiErrorMessage(error, 'Could not load your material requests.'),
-                            onRetry: () => ref.invalidate(buyerRequestsProvider),
-                          ),
-                        _ => const GlassCard(child: Center(child: CircularProgressIndicator())),
-                      },
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _cancel(BuildContext context, WidgetRef ref, MaterialRequest request) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancel this request?'),
-        content: Text('The ${request.materialType} request will be cancelled.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Keep request')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Cancel request')),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    try {
-      await ref.read(buyerApiProvider).cancelRequest(request.id);
-      ref.invalidate(buyerRequestsProvider);
-    } catch (error) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(error, 'Could not cancel this request.'))));
-      }
-    }
-  }
+  ConsumerState<BuyerRequestsScreen> createState() => _BuyerRequestsScreenState();
 }
 
-class _RequestList extends StatelessWidget {
-  const _RequestList({required this.requests, required this.onCancel});
-
-  final List<MaterialRequest> requests;
-  final ValueChanged<MaterialRequest> onCancel;
+class _BuyerRequestsScreenState extends ConsumerState<BuyerRequestsScreen> {
+  RequestFilter _filter = RequestFilter.all;
 
   @override
   Widget build(BuildContext context) {
-    if (requests.isEmpty) {
-      return const GlassCard(
-        child: Column(
-          children: [
-            Icon(LucideIcons.inbox, size: 26, color: AppColors.ink600),
-            SizedBox(height: 8),
-            Text('No material requests yet.', style: AppText.strong),
-          ],
-        ),
-      );
-    }
-    return Column(
+    final requests = ref.watch(buyerRequestsProvider);
+    final stats = ref.watch(buyerRequestStatsProvider);
+    final user = ref.watch(authControllerProvider).user;
+
+    final visible = requests.value?.where(_filter.matches).toList() ?? const <MaterialRequest>[];
+
+    return BuyerPage(
+      onRefresh: () => ref.refresh(buyerRequestsProvider.future),
       children: [
-        for (final request in requests)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 9),
-            child: GlassCard(
-              padding: const EdgeInsets.all(15),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(child: Text(request.materialType, style: AppText.display(16))),
-                      _RequestStatus(status: request.status),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text('${request.quantityKg.toStringAsFixed(2)} kg · Requested ${_shortDate(request.createdAt)}', style: AppText.small),
-                  if (request.lastMatchingNote?.isNotEmpty == true) ...[
-                    const SizedBox(height: 9),
-                    Text(request.lastMatchingNote!, style: AppText.body),
-                  ] else if (request.commercialPlanId != null) ...[
-                    const SizedBox(height: 9),
-                    const Text('A material plan is being prepared.', style: AppText.small),
-                  ],
-                  if (request.canCancel) ...[
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        onPressed: () => onCancel(request),
-                        icon: const Icon(LucideIcons.x, size: 16),
-                        label: const Text('Cancel request'),
-                        style: TextButton.styleFrom(foregroundColor: AppColors.red600),
-                      ),
-                    ),
-                  ],
-                ],
+        PageHeader(
+          title: 'Buyer portal',
+          subtitle: user == null ? null : 'Signed in as ${user.fullName}',
+          icon: LucideIcons.building2,
+          actions: const [NotificationBell(), SizedBox(width: 10)],
+        ),
+        AppButton(
+          label: 'Request material',
+          icon: LucideIcons.packagePlus,
+          expand: true,
+          onPressed: () async {
+            if (await showRequestMaterialSheet(context) && mounted) {
+              setState(() => _filter = RequestFilter.all);
+            }
+          },
+        ),
+        const SizedBox(height: 18),
+        _StatsRow(stats: stats),
+        const SizedBox(height: 20),
+        PillTabs<RequestFilter>(
+          value: _filter,
+          options: {for (final f in RequestFilter.values) f: f.label},
+          onChanged: (value) => setState(() => _filter = value),
+        ),
+        const SizedBox(height: 16),
+        switch (requests) {
+          AsyncData(:final value) when value.isEmpty => GlassCard(
+              child: EmptyState(
+                icon: LucideIcons.packagePlus,
+                title: 'No material requests yet',
+                description: 'Ask for a recovered material and follow it here from matching through to fulfilment.',
+                action: AppButton(
+                  label: 'Request material',
+                  icon: LucideIcons.packagePlus,
+                  small: true,
+                  onPressed: () => showRequestMaterialSheet(context),
+                ),
               ),
             ),
-          ),
+          AsyncData() when visible.isEmpty => GlassCard(
+              child: EmptyState(
+                icon: LucideIcons.inbox,
+                title: 'Nothing in "${_filter.label}"',
+                description: 'Try another filter to see the rest of your requests.',
+              ),
+            ),
+          AsyncData() => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SectionTitle('${_filter.label} requests', trailing: Text('${visible.length}', style: AppText.small)),
+                for (final request in visible) _RequestCard(request: request),
+              ],
+            ),
+          AsyncError(:final error) => ErrorMessage(
+              message: apiErrorMessage(error, 'Could not load your material requests.'),
+              onRetry: () => ref.invalidate(buyerRequestsProvider),
+            ),
+          _ => const GlassCard(child: LoadingState(label: 'Loading your requestsâ€¦')),
+        },
       ],
     );
   }
 }
+/// Portfolio summary: three counters above the list, so a buyer can see at a glance how much
+/// is still in flight before scrolling.
+class _StatsRow extends StatelessWidget {
+  const _StatsRow({required this.stats});
 
-class _RequestStatus extends StatelessWidget {
-  const _RequestStatus({required this.status});
-
-  final String status;
+  final BuyerRequestStats stats;
 
   @override
-  Widget build(BuildContext context) {
-    final (label, color, background) = switch (status) {
-      'Waiting' => ('Waiting', AppColors.amber800, AppColors.amber100),
-      'WaitingForPrice' => ('Waiting for price', AppColors.amber800, AppColors.amber100),
-      'GeneratingPlan' => ('Preparing plan', const Color(0xFF075985), const Color(0xFFE0F2FE)),
-      'PlanGenerated' => ('Plan ready', AppColors.mint700, AppColors.mint100),
-      'PlanGenerationFailed' => ('Retrying plan', AppColors.red600, AppColors.red50),
-      'OrderPlaced' => ('Order placed', AppColors.mint700, AppColors.mint100),
-      'Fulfilled' => ('Fulfilled', AppColors.mint700, AppColors.mint100),
-      _ => ('Cancelled', AppColors.ink600, AppColors.mint50),
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
-      child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
-    );
-  }
+  Widget build(BuildContext context) => Row(
+        children: [
+          Expanded(
+            child: _StatTile(
+              icon: LucideIcons.loader,
+              label: 'In progress',
+              value: '${stats.open}',
+              hint: Format.kg(stats.openKg),
+              color: AppColors.amber700,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _StatTile(
+              icon: LucideIcons.fileCheck,
+              label: 'Plan ready',
+              value: '${stats.planned}',
+              color: AppColors.violet800,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _StatTile(
+              icon: LucideIcons.circleCheck,
+              label: 'Fulfilled',
+              value: '${stats.fulfilled}',
+              color: AppColors.mint700,
+            ),
+          ),
+        ],
+      );
 }
 
-class _RequestError extends StatelessWidget {
-  const _RequestError({required this.message, required this.onRetry});
+class _StatTile extends StatelessWidget {
+  const _StatTile({required this.icon, required this.label, required this.value, required this.color, this.hint});
 
-  final String message;
-  final VoidCallback onRetry;
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+  final String? hint;
 
   @override
-  Widget build(BuildContext context) => GlassCard(
+  Widget build(BuildContext context) => Tile(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(message, style: AppText.body),
+            Icon(icon, size: 16, color: color),
             const SizedBox(height: 8),
-            TextButton.icon(onPressed: onRetry, icon: const Icon(LucideIcons.refreshCw, size: 16), label: const Text('Try again')),
+            Text(value, style: AppText.display(22, color: color)),
+            Text(label, style: AppText.label.copyWith(fontSize: 10)),
+            if (hint != null) ...[
+              const SizedBox(height: 2),
+              Text(hint!, style: AppText.small.copyWith(fontSize: 11)),
+            ],
           ],
         ),
       );
 }
 
-class _RequestMaterialSheet extends ConsumerStatefulWidget {
-  const _RequestMaterialSheet();
+/// One request in the list. Tapping opens the full view.
+class _RequestCard extends StatelessWidget {
+  const _RequestCard({required this.request});
+
+  final MaterialRequest request;
 
   @override
-  ConsumerState<_RequestMaterialSheet> createState() => _RequestMaterialSheetState();
+  Widget build(BuildContext context) {
+    final stage = request.stage;
+    return GlassCard(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      onTap: () => context.go('/buyer/requests/${request.id}'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(request.materialType, style: AppText.display(16)),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${Format.kg(request.quantityKg)} · raised ${Format.dateOf(request.createdAt)}',
+                      style: AppText.small,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              RequestStatusPill(stage, compact: true),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            stage.explanation,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.body,
+          ),
+          if (request.lastMatchingNote != null && request.lastMatchingNote!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(request.lastMatchingNote!, style: AppText.small.copyWith(fontStyle: FontStyle.italic)),
+          ],
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              if (request.hasPlan) const _LinkBadge(label: 'Plan', icon: LucideIcons.fileCheck),
+              if (request.hasOrder) const _LinkBadge(label: 'Order', icon: LucideIcons.packageCheck),
+              const Spacer(),
+              Text('View details', style: AppText.small.copyWith(color: AppColors.mint700, fontWeight: FontWeight.w600)),
+              const Icon(LucideIcons.chevronRight, size: 14, color: AppColors.mint700),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _RequestMaterialSheetState extends ConsumerState<_RequestMaterialSheet> {
-  final _formKey = GlobalKey<FormState>();
-  final _materialType = TextEditingController();
-  final _quantityKg = TextEditingController();
-  bool _saving = false;
-  String? _error;
+/// Small "this request has a linked record" marker (plan / order).
+class _LinkBadge extends StatelessWidget {
+  const _LinkBadge({required this.label, required this.icon});
 
-  @override
-  void dispose() {
-    _materialType.dispose();
-    _quantityKg.dispose();
-    super.dispose();
-  }
+  final String label;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+        padding: const EdgeInsets.only(right: 8),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 22),
-          decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(children: [
-                  const Expanded(child: Text('Request material', style: AppText.strong)),
-                  IconButton(tooltip: 'Close', onPressed: () => Navigator.pop(context), icon: const Icon(LucideIcons.x)),
-                ]),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _materialType,
-                  maxLength: 100,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(labelText: 'Material type', hintText: 'e.g. Copper'),
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Enter a material type.' : null,
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: _quantityKg,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Quantity (kg)'),
-                  validator: (value) {
-                    final quantity = double.tryParse(value?.trim() ?? '');
-                    if (quantity == null || quantity <= 0 || quantity > 1000000) return 'Enter a quantity greater than 0 and no more than 1,000,000 kg.';
-                    return null;
-                  },
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 10),
-                  Text(_error!, style: const TextStyle(color: AppColors.red600, fontSize: 13)),
-                ],
-                const SizedBox(height: 14),
-                FilledButton.icon(
-                  onPressed: _saving ? null : _submit,
-                  icon: _saving ? const SizedBox(width: 17, height: 17, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(LucideIcons.packagePlus, size: 18),
-                  label: Text(_saving ? 'Submitting…' : 'Submit request'),
-                ),
-              ],
-            ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(color: AppColors.mint50, borderRadius: BorderRadius.circular(999)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 11, color: AppColors.mint700),
+              const SizedBox(width: 4),
+              Text(label, style: const TextStyle(color: AppColors.mint800, fontSize: 11, fontWeight: FontWeight.w600)),
+            ],
           ),
         ),
       );
-
-  Future<void> _submit() async {
-    if (_saving || !_formKey.currentState!.validate()) return;
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      await ref.read(buyerApiProvider).requestMaterial(
-            materialType: _materialType.text,
-            quantityKg: double.parse(_quantityKg.text.trim()),
-          );
-      if (mounted) Navigator.pop(context, true);
-    } catch (error) {
-      if (mounted) setState(() => _error = apiErrorMessage(error, 'Could not submit the material request.'));
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
 }
 
-String _shortDate(DateTime date) => '${date.day}/${date.month}/${date.year}';

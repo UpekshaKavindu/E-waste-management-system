@@ -79,6 +79,7 @@ class InventoryListItem {
     required this.parentInventoryItemId,
     required this.category,
     required this.receivedAt,
+    this.quantity = 1,
   });
 
   final String id;
@@ -87,6 +88,9 @@ class InventoryListItem {
   final OriginType? originType;
   final ItemKind kind;
   final double verifiedWeightKg;
+
+  /// Above 1 for a received lot ("Laptop × 50").
+  final int quantity;
   final String currentLocationName;
   final String? parentInventoryItemId;
   final ClassificationCategory? category;
@@ -103,6 +107,7 @@ class InventoryListItem {
         parentInventoryItemId: j['parentInventoryItemId'] as String?,
         category: ClassificationCategory.tryFromApi(j['category'] as String?),
         receivedAt: j['receivedAt'] as String,
+        quantity: (j['quantity'] as num?)?.toInt() ?? 1,
       );
 }
 
@@ -173,10 +178,14 @@ class InventoryDetail {
     required this.receivedAt,
     required this.classification,
     required this.children,
+    this.quantity = 1,
   });
 
   final String id;
   final String itemType;
+
+  /// Above 1 for a received lot ("Laptop × 50").
+  final int quantity;
   final InventoryStatus status;
   final OriginType? originType;
   final ItemKind kind;
@@ -209,6 +218,7 @@ class InventoryDetail {
         children: ((j['children'] as List?) ?? const [])
             .map((c) => InventoryChild.fromJson(c as Map<String, dynamic>))
             .toList(),
+        quantity: (j['quantity'] as num?)?.toInt() ?? 1,
       );
 }
 
@@ -294,6 +304,7 @@ class ReceivableJob {
     required this.completedAt,
     required this.submissionCategory,
     required this.suggestedItemType,
+    this.items = const [],
   });
 
   final String jobId;
@@ -308,6 +319,11 @@ class ReceivableJob {
 
   /// The submission category matched to the item-type list; null when staff must choose.
   final String? suggestedItemType;
+
+  /// What the customer submitted, one row per item / CSV row. Empty → the job is received as a whole.
+  final List<ReceivableJobItem> items;
+
+  int get expectedUnits => items.fold(0, (sum, i) => sum + i.quantity);
 
   String get collectorLabel {
     final name = collectorName;
@@ -327,44 +343,160 @@ class ReceivableJob {
         completedAt: j['completedAt'] as String?,
         submissionCategory: j['submissionCategory'] as String?,
         suggestedItemType: j['suggestedItemType'] as String?,
+        items: [
+          for (final i in (j['items'] as List? ?? const [])) ReceivableJobItem.fromJson(i as Map<String, dynamic>),
+        ],
       );
 }
 
-/// One job of a collector's delivery, as sent to receive-delivery.
+/// One submission item / CSV row of a job, as the warehouse receives it.
+class ReceivableJobItem {
+  const ReceivableJobItem({
+    required this.submissionItemId,
+    required this.itemName,
+    this.description,
+    required this.quantity,
+    this.expectedWeightKg,
+    this.suggestedItemType,
+    this.suggestionSource,
+  });
+
+  final String submissionItemId;
+  final String itemName;
+  final String? description;
+
+  /// Units expected (CSV quantity; 1 for manual items).
+  final int quantity;
+
+  /// Best guess for the whole row (CSV per-unit × quantity, else the AI's estimate).
+  final double? expectedWeightKg;
+  final String? suggestedItemType;
+
+  /// "name" | "category" | "ai" | "submission".
+  final String? suggestionSource;
+
+  factory ReceivableJobItem.fromJson(Map<String, dynamic> j) => ReceivableJobItem(
+        submissionItemId: j['submissionItemId'] as String,
+        itemName: j['itemName'] as String? ?? '',
+        description: j['description'] as String?,
+        quantity: (j['quantity'] as num?)?.toInt() ?? 1,
+        expectedWeightKg: _dOrNull(j['expectedWeightKg']),
+        suggestedItemType: j['suggestedItemType'] as String?,
+        suggestionSource: j['suggestionSource'] as String?,
+      );
+}
+
+/// One item line of a job, as sent to receive-delivery. [receivedQuantity] 0 = not brought.
+class DeliveryItemInput {
+  const DeliveryItemInput({
+    required this.submissionItemId,
+    required this.receivedQuantity,
+    required this.itemType,
+    required this.verifiedWeightKg,
+  });
+
+  final String submissionItemId;
+  final int receivedQuantity;
+  final String? itemType;
+
+  /// The whole row on the scale.
+  final double verifiedWeightKg;
+
+  Map<String, dynamic> toJson() => {
+        'submissionItemId': submissionItemId,
+        'receivedQuantity': receivedQuantity,
+        'itemType': receivedQuantity > 0 ? itemType : null,
+        'verifiedWeightKg': receivedQuantity > 0 ? verifiedWeightKg : 0,
+      };
+}
+
+/// One job of a collector's delivery, as sent to receive-delivery: item by item, or — for a job whose
+/// submission has no items — as one whole weight and type.
 class DeliveryJobInput {
-  const DeliveryJobInput({required this.jobId, required this.verifiedWeightKg, required this.itemType});
+  const DeliveryJobInput.items({required this.jobId, required this.items})
+      : wholeWeightKg = null,
+        wholeItemType = null;
+
+  const DeliveryJobInput.whole({required this.jobId, required double verifiedWeightKg, required String itemType})
+      : items = const [],
+        wholeWeightKg = verifiedWeightKg,
+        wholeItemType = itemType;
 
   final String jobId;
+  final List<DeliveryItemInput> items;
+  final double? wholeWeightKg;
+  final String? wholeItemType;
+
+  Map<String, dynamic> toJson() => {
+        'jobId': jobId,
+        'items': [for (final i in items) i.toJson()],
+        if (wholeWeightKg != null) 'verifiedWeightKg': wholeWeightKg,
+        if (wholeItemType != null) 'itemType': wholeItemType,
+      };
+}
+
+class DeliveryItemResult {
+  const DeliveryItemResult({
+    required this.itemName,
+    required this.expectedQuantity,
+    required this.receivedQuantity,
+    required this.inventoryItemId,
+    required this.itemType,
+    required this.verifiedWeightKg,
+  });
+
+  final String itemName;
+  final int expectedQuantity;
+  final int receivedQuantity;
+
+  /// Null when nothing was brought.
+  final String? inventoryItemId;
+  final String? itemType;
   final double verifiedWeightKg;
-  final String itemType;
+
+  factory DeliveryItemResult.fromJson(Map<String, dynamic> j) => DeliveryItemResult(
+        itemName: j['itemName'] as String? ?? '',
+        expectedQuantity: (j['expectedQuantity'] as num?)?.toInt() ?? 1,
+        receivedQuantity: (j['receivedQuantity'] as num?)?.toInt() ?? 0,
+        inventoryItemId: j['inventoryItemId'] as String?,
+        itemType: j['itemType'] as String?,
+        verifiedWeightKg: _d(j['verifiedWeightKg']),
+      );
 }
 
 class DeliveryJobResult {
   const DeliveryJobResult({
     required this.jobId,
-    required this.inventoryItemId,
-    required this.itemType,
     required this.verifiedWeightKg,
     required this.reportedWeightKg,
     required this.discrepancyKg,
+    required this.expectedQuantity,
+    required this.receivedQuantity,
+    required this.items,
     required this.paymentAmount,
   });
 
   final String jobId;
-  final String inventoryItemId;
-  final String itemType;
+
+  /// Sum of the received rows — what the payment uses.
   final double verifiedWeightKg;
   final double? reportedWeightKg;
   final double? discrepancyKg;
+  final int expectedQuantity;
+  final int receivedQuantity;
+  final List<DeliveryItemResult> items;
   final double paymentAmount;
 
   factory DeliveryJobResult.fromJson(Map<String, dynamic> j) => DeliveryJobResult(
         jobId: j['jobId'] as String,
-        inventoryItemId: j['inventoryItemId'] as String,
-        itemType: j['itemType'] as String? ?? '',
         verifiedWeightKg: _d(j['verifiedWeightKg']),
         reportedWeightKg: _dOrNull(j['reportedWeightKg']),
         discrepancyKg: _dOrNull(j['discrepancyKg']),
+        expectedQuantity: (j['expectedQuantity'] as num?)?.toInt() ?? 1,
+        receivedQuantity: (j['receivedQuantity'] as num?)?.toInt() ?? 1,
+        items: [
+          for (final i in (j['items'] as List? ?? const [])) DeliveryItemResult.fromJson(i as Map<String, dynamic>),
+        ],
         paymentAmount: _d(j['paymentAmount']),
       );
 }

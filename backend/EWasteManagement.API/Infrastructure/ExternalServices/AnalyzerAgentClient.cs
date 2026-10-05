@@ -1,3 +1,4 @@
+using EWasteManagement.API.Features.Workflow.DTOs;
 using System.Net.Http.Json;
 
 namespace EWasteManagement.API.Infrastructure.ExternalServices;
@@ -44,6 +45,7 @@ public class AnalyzerAgentResult
     public string WasteCategory { get; set; } = string.Empty;
     public string HazardLevel { get; set; } = string.Empty;
     public decimal EstimatedVolumeKg { get; set; }
-    public decimal EstimatedValueUsd { get; set; }
+    public decimal EstimatedValueLkr { get; set; }
     public double ConfidenceScore { get; set; }
+    public List<AnalyzedItem> Items { get; set; } = new();
 }

@@ -92,6 +92,7 @@ builder.Services.AddScoped<IAdminAccountService, AdminAccountService>();
 builder.Services.AddScoped<ICollectorService, CollectorService>();
 builder.Services.AddScoped<IMatchingService, MatchingService>();
 builder.Services.AddScoped<IJobService, JobService>();
+builder.Services.AddScoped<ICollectorJobInfoService, CollectorJobInfoService>();
 builder.Services.AddScoped<ISubmissionService, SubmissionService>();
 builder.Services.AddScoped<IJobVerificationService, JobVerificationService>();
 builder.Services.AddScoped<IJobReceiptService, JobReceiptService>();

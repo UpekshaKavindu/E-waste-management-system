@@ -37,27 +37,64 @@ class SubmissionItem {
       );
 }
 
-/// SubmissionAnalysisDto — only present once the Analyzer agent has run.
+/// SubmissionAnalysisDto — only present once the Analyzer agent has run. The top-level fields are
+/// the whole submission (worst hazard, totals, lowest confidence); [items] is each item's own result.
 class SubmissionAnalysis {
   const SubmissionAnalysis({
     required this.wasteCategory,
     required this.hazardLevel,
     required this.estimatedVolumeKg,
-    required this.estimatedValueUsd,
+    required this.estimatedValueLkr,
     required this.confidenceScore,
+    this.items = const [],
   });
 
   final String wasteCategory;
   final String hazardLevel;
   final double estimatedVolumeKg;
-  final double estimatedValueUsd;
+  final double estimatedValueLkr;
   final double confidenceScore;
+
+  /// Empty for submissions analysed before per-item analysis.
+  final List<AnalyzedItem> items;
 
   factory SubmissionAnalysis.fromJson(Map<String, dynamic> json) => SubmissionAnalysis(
         wasteCategory: json['wasteCategory'] as String? ?? '',
         hazardLevel: json['hazardLevel'] as String? ?? '',
         estimatedVolumeKg: (json['estimatedVolumeKg'] as num?)?.toDouble() ?? 0,
-        estimatedValueUsd: (json['estimatedValueUsd'] as num?)?.toDouble() ?? 0,
+        estimatedValueLkr: (json['estimatedValueLkr'] as num?)?.toDouble() ?? 0,
+        confidenceScore: (json['confidenceScore'] as num?)?.toDouble() ?? 0,
+        items: [
+          for (final item in (json['items'] as List<dynamic>? ?? const []))
+            AnalyzedItem.fromJson(item as Map<String, dynamic>),
+        ],
+      );
+}
+
+/// One item's own classification inside a [SubmissionAnalysis].
+class AnalyzedItem {
+  const AnalyzedItem({
+    required this.itemName,
+    required this.wasteCategory,
+    required this.hazardLevel,
+    required this.estimatedVolumeKg,
+    required this.estimatedValueLkr,
+    required this.confidenceScore,
+  });
+
+  final String itemName;
+  final String wasteCategory;
+  final String hazardLevel;
+  final double estimatedVolumeKg;
+  final double estimatedValueLkr;
+  final double confidenceScore;
+
+  factory AnalyzedItem.fromJson(Map<String, dynamic> json) => AnalyzedItem(
+        itemName: json['itemName'] as String? ?? '',
+        wasteCategory: json['wasteCategory'] as String? ?? '',
+        hazardLevel: json['hazardLevel'] as String? ?? '',
+        estimatedVolumeKg: (json['estimatedVolumeKg'] as num?)?.toDouble() ?? 0,
+        estimatedValueLkr: (json['estimatedValueLkr'] as num?)?.toDouble() ?? 0,
         confidenceScore: (json['confidenceScore'] as num?)?.toDouble() ?? 0,
       );
 }

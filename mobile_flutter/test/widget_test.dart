@@ -132,14 +132,54 @@ void main() {
         'totalPendingAmount': 1250,
         'jobs': [
           {
-            'jobId': 'j1', 'inventoryItemId': 'i1', 'itemType': 'Laptop', 'verifiedWeightKg': 2.5,
-            'reportedWeightKg': null, 'discrepancyKg': null, 'paymentId': 'p1', 'paymentAmount': 1250,
+            'jobId': 'j1', 'verifiedWeightKg': 52.5, 'reportedWeightKg': null, 'discrepancyKg': null,
+            'expectedQuantity': 51, 'receivedQuantity': 50, 'paymentId': 'p1', 'paymentAmount': 1250,
+            'items': [
+              {
+                'submissionItemId': 's1', 'itemName': 'Dell laptop', 'expectedQuantity': 50, 'receivedQuantity': 50,
+                'inventoryItemId': 'i1', 'itemType': 'Laptop', 'verifiedWeightKg': 52.5,
+              },
+              {
+                'submissionItemId': 's2', 'itemName': 'Router', 'expectedQuantity': 1, 'receivedQuantity': 0,
+                'inventoryItemId': null, 'itemType': null, 'verifiedWeightKg': 0,
+              },
+            ],
           },
         ],
       });
       expect(r.totalPendingAmount, 1250.0);
-      expect(r.jobs.single.inventoryItemId, 'i1');
-      expect(r.jobs.single.reportedWeightKg, isNull);
+      final job = r.jobs.single;
+      expect(job.reportedWeightKg, isNull);
+      expect((job.receivedQuantity, job.expectedQuantity), (50, 51));
+      expect(job.items.first.inventoryItemId, 'i1');
+      expect(job.items.last.inventoryItemId, isNull); // not brought
+    });
+
+    test('a receivable job lists its items with suggestions', () {
+      final j = ReceivableJob.fromJson({
+        'jobId': 'j1', 'collectorId': 'c1', 'pickupAddress': '1 Main St', 'reportedWeightKg': 30,
+        'items': [
+          {
+            'submissionItemId': 's1', 'itemName': 'Dell laptop', 'quantity': 50, 'expectedWeightKg': 125,
+            'suggestedItemType': 'Laptop', 'suggestionSource': 'name',
+          },
+          {'submissionItemId': 's2', 'itemName': 'Router', 'quantity': 1},
+        ],
+      });
+      expect(j.items.length, 2);
+      expect(j.expectedUnits, 51);
+      expect(j.items.first.suggestedItemType, 'Laptop');
+      expect(j.items.last.suggestedItemType, isNull);
+    });
+
+    test('a delivery line sends only what was brought', () {
+      final line = const DeliveryJobInput.items(jobId: 'j1', items: [
+        DeliveryItemInput(submissionItemId: 's1', receivedQuantity: 50, itemType: 'Laptop', verifiedWeightKg: 52.5),
+        DeliveryItemInput(submissionItemId: 's2', receivedQuantity: 0, itemType: 'Battery', verifiedWeightKg: 9),
+      ]).toJson();
+      final items = line['items'] as List;
+      expect(items.last, {'submissionItemId': 's2', 'receivedQuantity': 0, 'itemType': null, 'verifiedWeightKg': 0});
+      expect(line.containsKey('verifiedWeightKg'), isFalse);
     });
 
     test('material stock', () {

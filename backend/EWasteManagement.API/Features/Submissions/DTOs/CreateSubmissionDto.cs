@@ -4,6 +4,10 @@ namespace EWasteManagement.Api.Dtos
     // takes them from the caller's JWT (sub claim and role).
     public class CreateSubmissionDto
     {
+        // "Manual" (default) or "Csv". Csv is only accepted from corporate accounts.
+        public string Source { get; set; } = SubmissionSources.Manual;
+
+        // Manual only: a CSV submission's category and total weight are worked out from its rows.
         public string Category { get; set; } = string.Empty;
         public decimal EstimatedWeight { get; set; }
         public string PickupAddress { get; set; } = string.Empty;
@@ -16,5 +20,10 @@ namespace EWasteManagement.Api.Dtos
         public string ItemName { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string ImageUrl { get; set; } = string.Empty;
+
+        // CSV rows only.
+        public int Quantity { get; set; } = 1;
+        public decimal? EstimatedWeightKg { get; set; }   // per unit
+        public string? Category { get; set; }              // hint
     }
 }

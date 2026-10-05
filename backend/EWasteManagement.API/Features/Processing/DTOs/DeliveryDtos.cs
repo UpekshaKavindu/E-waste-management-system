@@ -14,10 +14,32 @@ public class ReceiveDeliveryRequest
 public class DeliveryJobLine
 {
     public Guid JobId { get; set; }
+
+    /// <summary>
+    /// One line per submission item (manual item or CSV row). Items not listed count as not brought.
+    /// Required whenever the job's submission has items.
+    /// </summary>
+    public List<DeliveryItemLine> Items { get; set; } = new();
+
+    /// <summary>Whole-job receiving, only for a job whose submission has no items.</summary>
     public decimal VerifiedWeightKg { get; set; }
 
-    /// <summary>From the item-type list; falls back to the submission category when omitted.</summary>
+    /// <summary>Whole-job receiving only: from the item-type list; falls back to the submission category.</summary>
     public string? ItemType { get; set; }
+}
+
+public class DeliveryItemLine
+{
+    public Guid SubmissionItemId { get; set; }
+
+    /// <summary>Units actually brought, 0 to the expected quantity. 0 = not brought: nothing is created.</summary>
+    public int ReceivedQuantity { get; set; }
+
+    /// <summary>Required when ReceivedQuantity > 0.</summary>
+    public string? ItemType { get; set; }
+
+    /// <summary>The whole row's weight on the scale (all its units together). Required when ReceivedQuantity > 0.</summary>
+    public decimal VerifiedWeightKg { get; set; }
 }
 
 public class ReceiveDeliveryRequestValidator : AbstractValidator<ReceiveDeliveryRequest>
@@ -35,8 +57,28 @@ public class ReceiveDeliveryRequestValidator : AbstractValidator<ReceiveDelivery
         RuleForEach(x => x.Jobs).ChildRules(job =>
         {
             job.RuleFor(j => j.JobId).NotEmpty();
-            job.RuleFor(j => j.VerifiedWeightKg).GreaterThan(0);
             job.RuleFor(j => j.ItemType).MaximumLength(50);
+            job.RuleFor(j => j.VerifiedWeightKg).GreaterThan(0).When(j => j.Items.Count == 0)
+                .WithMessage("Enter the verified weight.");
+
+            job.RuleFor(j => j.Items)
+                .Must(items => items.Select(i => i.SubmissionItemId).Distinct().Count() == items.Count)
+                .WithMessage("The same item is listed more than once.")
+                .Must(items => items.Count == 0 || items.Any(i => i.ReceivedQuantity > 0))
+                .WithMessage("Nothing from this job was received — untick it instead.");
+
+            job.RuleForEach(j => j.Items).ChildRules(item =>
+            {
+                item.RuleFor(i => i.SubmissionItemId).NotEmpty();
+                item.RuleFor(i => i.ReceivedQuantity).GreaterThanOrEqualTo(0);
+                item.RuleFor(i => i.ItemType)
+                    .NotEmpty().WithMessage("Choose the item type.")
+                    .MaximumLength(50)
+                    .When(i => i.ReceivedQuantity > 0);
+                item.RuleFor(i => i.VerifiedWeightKg)
+                    .GreaterThan(0).WithMessage("Enter the verified weight.")
+                    .When(i => i.ReceivedQuantity > 0);
+            });
         });
     }
 }
@@ -44,13 +86,33 @@ public class ReceiveDeliveryRequestValidator : AbstractValidator<ReceiveDelivery
 public class DeliveryJobResult
 {
     public Guid JobId { get; set; }
-    public Guid InventoryItemId { get; set; }
-    public string ItemType { get; set; } = string.Empty;
+
+    /// <summary>Sum of the received rows — what the payment is calculated from.</summary>
     public decimal VerifiedWeightKg { get; set; }
     public decimal? ReportedWeightKg { get; set; }
     public decimal? DiscrepancyKg { get; set; }
+
+    /// <summary>Units expected vs. brought, across all of the job's items.</summary>
+    public int ExpectedQuantity { get; set; }
+    public int ReceivedQuantity { get; set; }
+
+    public List<DeliveryItemResult> Items { get; set; } = new();
     public Guid PaymentId { get; set; }
     public decimal PaymentAmount { get; set; }
+}
+
+public class DeliveryItemResult
+{
+    /// <summary>Null for a job received as a whole.</summary>
+    public Guid? SubmissionItemId { get; set; }
+    public string ItemName { get; set; } = string.Empty;
+    public int ExpectedQuantity { get; set; }
+    public int ReceivedQuantity { get; set; }
+
+    /// <summary>Null when nothing was brought (no inventory item created).</summary>
+    public Guid? InventoryItemId { get; set; }
+    public string? ItemType { get; set; }
+    public decimal VerifiedWeightKg { get; set; }
 }
 
 public class ReceiveDeliveryResponse

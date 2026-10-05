@@ -95,7 +95,10 @@ class _ItemBody extends ConsumerWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: Text(item.itemType, style: AppText.display(22))),
+                  Expanded(
+                    child: Text(item.quantity > 1 ? '${item.itemType} × ${item.quantity}' : item.itemType,
+                        style: AppText.display(22)),
+                  ),
                   Text(Format.kg(item.verifiedWeightKg), style: AppText.display(18, color: AppColors.mint700)),
                 ],
               ),
@@ -439,50 +442,51 @@ class _HistoryCard extends ConsumerWidget {
         children: [
           const SectionTitle('History', icon: LucideIcons.route),
           if (newestFirst.isEmpty) const Text('No history recorded.', style: AppText.small),
+          // The connector line is a layer behind the row rather than an IntrinsicHeight column:
+          // intrinsic sizing measures wrapped text slightly differently and overflowed by a pixel.
           for (var i = 0; i < newestFirst.length; i++)
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Column(
-                    children: [
-                      Container(
-                        width: 26,
-                        height: 26,
-                        decoration: BoxDecoration(
-                          color: AppColors.mint600,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.7), width: 3),
-                        ),
-                        child: Icon(_icons[newestFirst[i].action] ?? LucideIcons.circleCheck, size: 12, color: Colors.white),
+            Stack(
+              children: [
+                if (i < newestFirst.length - 1)
+                  Positioned(left: 12, top: 26, bottom: 0, child: Container(width: 2, color: AppColors.mint100)),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: AppColors.mint600,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.7), width: 3),
                       ),
-                      if (i < newestFirst.length - 1) Expanded(child: Container(width: 2, color: AppColors.mint100)),
-                    ],
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 16, top: 2),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(_label(newestFirst[i].action), style: AppText.strong),
-                          if (newestFirst[i].notes != null && newestFirst[i].notes!.isNotEmpty) ...[
+                      child: Icon(_icons[newestFirst[i].action] ?? LucideIcons.circleCheck, size: 12, color: Colors.white),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 16, top: 2),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(_label(newestFirst[i].action), style: AppText.strong),
+                            if (newestFirst[i].notes != null && newestFirst[i].notes!.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(newestFirst[i].notes!, style: const TextStyle(fontSize: 12, color: AppColors.ink800)),
+                            ],
                             const SizedBox(height: 2),
-                            Text(newestFirst[i].notes!, style: const TextStyle(fontSize: 12, color: AppColors.ink800)),
+                            Text(
+                              '${Format.dateTime(newestFirst[i].performedAt)} · by '
+                              '${newestFirst[i].performedByStaffId == me ? 'you' : 'staff ${Format.shortId(newestFirst[i].performedByStaffId)}'}',
+                              style: const TextStyle(fontSize: 11, color: AppColors.ink600),
+                            ),
                           ],
-                          const SizedBox(height: 2),
-                          Text(
-                            '${Format.dateTime(newestFirst[i].performedAt)} · by '
-                            '${newestFirst[i].performedByStaffId == me ? 'you' : 'staff ${Format.shortId(newestFirst[i].performedByStaffId)}'}',
-                            style: const TextStyle(fontSize: 11, color: AppColors.ink600),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ),
         ],
       ),

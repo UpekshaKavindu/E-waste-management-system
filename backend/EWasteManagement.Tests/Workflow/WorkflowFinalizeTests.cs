@@ -75,7 +75,7 @@ public class WorkflowFinalizeTests : CollectionTestBase
             AnalyzerResultJson = JsonSerializer.Serialize(new AnalyzerResultRequest
             {
                 WasteCategory = "IT Equipment", HazardLevel = "Low",
-                EstimatedVolumeKg = 2m, EstimatedValueUsd = 40m, ConfidenceScore = 0.95,
+                EstimatedVolumeKg = 2m, EstimatedValueLkr = 40m, ConfidenceScore = 0.95,
             }),
             ValidatorResultJson = JsonSerializer.Serialize(new ValidatorResultRequest
             {
@@ -316,7 +316,7 @@ public class WorkflowFinalizeTests : CollectionTestBase
             => throw new InvalidOperationException("Validator should not run in a Finalize test.");
 
         public Task<MatcherAgentResult> RunAsync(Guid workflowId, decimal pickupLatitude, decimal pickupLongitude,
-            decimal estimatedWeightKg, decimal estimatedValueUsd, bool alreadyEscalated,
+            decimal estimatedWeightKg, decimal estimatedValueLkr, bool alreadyEscalated,
             List<Guid>? excludeCollectorIds = null, CancellationToken ct = default)
             => throw new InvalidOperationException("Matcher should not run in a Finalize test.");
     }
@@ -327,7 +327,7 @@ public class WorkflowFinalizeTests : CollectionTestBase
         public FixedMatcher(MatcherAgentResult result) => _result = result;
 
         public Task<MatcherAgentResult> RunAsync(Guid workflowId, decimal pickupLatitude, decimal pickupLongitude,
-            decimal estimatedWeightKg, decimal estimatedValueUsd, bool alreadyEscalated,
+            decimal estimatedWeightKg, decimal estimatedValueLkr, bool alreadyEscalated,
             List<Guid>? excludeCollectorIds = null, CancellationToken ct = default)
             => Task.FromResult(_result);
     }
@@ -354,6 +354,7 @@ public class WorkflowFinalizeTests : CollectionTestBase
         public Task<JobResponseDto> CompleteAsync(Guid jobId, Guid requestingUserId, CompleteJobDto dto) => throw new NotSupportedException();
         public Task<List<JobResponseDto>> GetMyJobsAsync(Guid requestingUserId, JobStatus? status) => throw new NotSupportedException();
         public Task<JobResponseDto?> GetByIdAsync(Guid jobId, Guid requestingUserId, bool isPrivileged) => throw new NotSupportedException();
+        public Task<JobRouteDto?> GetRouteAsync(Guid jobId, Guid requestingUserId, decimal? fromLat, decimal? fromLng) => throw new NotSupportedException();
         public Task<List<JobResponseDto>> GetAllAsync(JobStatus? status) => throw new NotSupportedException();
         public Task<List<JobAssignmentHistoryDto>> GetHistoryAsync(Guid jobId) => throw new NotSupportedException();
         public Task<JobResponseDto> UpdateAddressAsync(Guid jobId, UpdateJobAddressDto dto) => throw new NotSupportedException();

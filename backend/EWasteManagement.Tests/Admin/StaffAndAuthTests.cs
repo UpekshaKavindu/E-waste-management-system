@@ -158,22 +158,27 @@ public class StaffAndAuthTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task UpdateAdmin_ChangesDetails_KeepsPasswordWhenBlank_AndRejectsTakenEmail()
+    public async Task UpdateAdmin_ChangesOwnDetails_KeepsPasswordWhenBlank_AndRejectsTakenEmailOrOtherAdmin()
     {
         var admins = new AdminAccountService(_db);
         var ada = await admins.CreateAsync(new CreateAdminRequest { FullName = "Ada", Email = "ada@test.com", Password = "secret1" });
-        await admins.CreateAsync(new CreateAdminRequest { FullName = "Bob", Email = "bob@test.com", Password = "secret1" });
+        var bob = await admins.CreateAsync(new CreateAdminRequest { FullName = "Bob", Email = "bob@test.com", Password = "secret1" });
 
-        var updated = await admins.UpdateAsync(ada.UserId, new UpdateAdminRequest { FullName = "Ada L", Email = "ada@test.com", Phone = "0771234567" });
+        var updated = await admins.UpdateAsync(ada.UserId, ada.UserId, new UpdateAdminRequest { FullName = "Ada L", Email = "ada@test.com", Phone = "0771234567" });
         Assert.Equal("Ada L", updated.FullName);
         Assert.Equal("0771234567", updated.Phone);
         await Auth().LoginAsync(new LoginRequest { Email = "ada@test.com", Password = "secret1" });
 
-        await admins.UpdateAsync(ada.UserId, new UpdateAdminRequest { FullName = "Ada L", Email = "ada@test.com", Password = "newpass1" });
+        await admins.UpdateAsync(ada.UserId, ada.UserId, new UpdateAdminRequest { FullName = "Ada L", Email = "ada@test.com", Password = "newpass1" });
         await Auth().LoginAsync(new LoginRequest { Email = "ada@test.com", Password = "newpass1" });
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => admins.UpdateAsync(
-            ada.UserId, new UpdateAdminRequest { FullName = "Ada L", Email = "bob@test.com" }));
+            ada.UserId, ada.UserId, new UpdateAdminRequest { FullName = "Ada L", Email = "bob@test.com" }));
+
+        // Ada cannot change Bob's details or password.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => admins.UpdateAsync(
+            bob.UserId, ada.UserId, new UpdateAdminRequest { FullName = "Hacked", Email = "bob@test.com", Password = "takeover1" }));
+        await Auth().LoginAsync(new LoginRequest { Email = "bob@test.com", Password = "secret1" });
     }
 
     [Fact]

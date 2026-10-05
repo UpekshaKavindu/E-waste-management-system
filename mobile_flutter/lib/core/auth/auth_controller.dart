@@ -92,6 +92,16 @@ class AuthController extends Notifier<AuthState> {
     state = AuthState.signedIn(user, token);
   }
 
+  /// Keeps the cached session in step after the user renames themselves (the token is unchanged).
+  Future<void> updateFullName(String fullName) async {
+    final user = state.user;
+    final token = state.token;
+    if (user == null || token == null) return;
+    final updated = AuthUser(userId: user.userId, email: user.email, fullName: fullName, role: user.role);
+    await _storage.write(key: _userKey, value: jsonEncode(updated.toJson()));
+    state = AuthState.signedIn(updated, token);
+  }
+
   Future<void> signOut({String? reason}) async {
     if (state.status == AuthStatus.signedOut) return;
     _expiryTimer?.cancel();

@@ -11,6 +11,8 @@ import {
   btnSecondary, inputClass,
 } from '../../components/ui';
 import type { StatusTone } from '../../components/ui/StatusPill';
+import { formatMoney } from '../processing/utils/format';
+import { ItemBreakdown } from './ItemBreakdown';
 
 const STATUS_TONE: Record<string, StatusTone> = {
   CollectorAssigned: 'success',
@@ -153,7 +155,7 @@ const AdminReviewPage: React.FC = () => {
               const imgUrl = item?.imageUrl;
               const hazard = ai?.hazardLevel;
               const category = ai?.wasteCategory;
-              const value = ai?.estimatedValueUsd;
+              const value = ai?.estimatedValueLkr;
 
               return (
                 <div key={sub.id} className="flex flex-wrap items-center gap-4 p-5">
@@ -175,12 +177,18 @@ const AdminReviewPage: React.FC = () => {
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-3">
-                      <h4 className="font-display font-bold text-ink-900">{item?.itemName || 'E-Waste Item'}</h4>
+                      <h4 className="font-display font-bold text-ink-900">
+                        {sub.source === 'Csv'
+                          ? `CSV upload · ${sub.items.length} rows · ${sub.items.reduce((n, it) => n + (it.quantity ?? 1), 0)} items`
+                          : item?.itemName || 'E-Waste Item'}
+                      </h4>
                       <span className="flex-shrink-0 rounded-full bg-ink-100 px-2.5 py-0.5 font-mono text-[11px] text-ink-600">
                         {sub.id.substring(0, 8)}…
                       </span>
                     </div>
-                    <p className="mt-0.5 text-sm italic text-ink-600">&ldquo;{item?.description}&rdquo;</p>
+                    {sub.source !== 'Csv' && item?.description && (
+                      <p className="mt-0.5 text-sm italic text-ink-600">&ldquo;{item.description}&rdquo;</p>
+                    )}
                     {sub.statusReason && <p className="mt-1 text-xs font-medium text-red-600">{sub.statusReason}</p>}
 
                     {ai ? (
@@ -192,7 +200,8 @@ const AdminReviewPage: React.FC = () => {
                             {hazard}
                           </span>
                         </span>
-                        <span><strong>Value:</strong> ${value}</span>
+                        <span><strong>Value:</strong> {value !== undefined ? formatMoney(value) : '—'}</span>
+                        <ItemBreakdown items={ai.items} className="mt-1 basis-full" />
                       </div>
                     ) : sub.status === 'Analyzing' ? (
                       <span className="mt-2 inline-block text-xs font-medium text-amber-700">Pending AI analysis…</span>

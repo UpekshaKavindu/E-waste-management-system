@@ -1,6 +1,7 @@
 using EWasteManagement.Api.Entities;
 using EWasteManagement.API.Features.Auth.Entities;
 using EWasteManagement.API.Features.Collection.Entities;
+using EWasteManagement.API.Features.Notifications.Services;
 using EWasteManagement.API.Features.Processing.DTOs;
 using EWasteManagement.API.Features.Processing.Entities;
 using EWasteManagement.API.Features.Processing.Exceptions;
@@ -61,7 +62,7 @@ public class CollectorDeliveryTests : IAsyncLifetime
     }
 
     private JobReceiptService Service(Dictionary<Guid, JobVerificationResult> jobs)
-        => new(_db, new PerJobVerification(jobs), PaymentService(), new ItemTypeCatalogService(_db));
+        => new(_db, new PerJobVerification(jobs), PaymentService(), new ItemTypeCatalogService(_db), new NotificationService(_db));
 
     private JobVerificationResult Completed(decimal distanceKm) => new(true, true, null, DistanceKm: distanceKm, CollectorId: _collectorId);
 

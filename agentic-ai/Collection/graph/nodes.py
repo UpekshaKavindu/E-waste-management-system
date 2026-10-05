@@ -16,7 +16,7 @@ from schemas import CollectorMatch
 # Simple, defensible for a student project: jobs at or below this value are
 # routine enough to auto-assign; anything above always goes to a human,
 # regardless of match quality.
-ROUTINE_VALUE_THRESHOLD_USD = 300.0
+ROUTINE_VALUE_THRESHOLD_LKR = 90000.0  # Sri Lankan Rupees
 
 
 def _comparability_score(c: CollectorMatch) -> float:
@@ -56,7 +56,7 @@ def decide_node(state: MatcherState) -> MatcherState:
         ambiguous = (top_score - second_score) < AMBIGUOUS_SCORE_MARGIN
 
     already_escalated = state.get("already_escalated", False)
-    routine_value = state.get("estimated_value_usd", 0.0) <= ROUTINE_VALUE_THRESHOLD_USD
+    routine_value = state.get("estimated_value_lkr", 0.0) <= ROUTINE_VALUE_THRESHOLD_LKR
 
     auto_assign = (not already_escalated) and (not ambiguous) and routine_value
 
@@ -67,7 +67,7 @@ def decide_node(state: MatcherState) -> MatcherState:
     if ambiguous:
         reasons.append(f"Top two candidates within {AMBIGUOUS_SCORE_MARGIN} points — treated as ambiguous.")
     if not routine_value:
-        reasons.append(f"Estimated value exceeds the ${ROUTINE_VALUE_THRESHOLD_USD:,.0f} routine threshold.")
+        reasons.append(f"Estimated value exceeds the Rs. {ROUTINE_VALUE_THRESHOLD_LKR:,.0f} routine threshold.")
     reasons.append("Auto-assigning." if auto_assign else "Leaving for staff to confirm.")
 
     return {

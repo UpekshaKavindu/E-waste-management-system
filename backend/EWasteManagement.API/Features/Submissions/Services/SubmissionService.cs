@@ -34,19 +34,31 @@ namespace EWasteManagement.Api.Services
         public async Task<SubmissionResponseDto> CreateSubmissionAsync(
             CreateSubmissionDto dto, Guid userId, string userType, CancellationToken ct = default)
         {
+            var isCsv = SubmissionSources.IsCsv(dto.Source);
+
+            // The web app only shows the CSV tab to corporate accounts; this is what actually stops
+            // anyone else from sending a CSV submission straight to the API.
+            if (isCsv && !string.Equals(userType, nameof(UserRole.Corporate), StringComparison.OrdinalIgnoreCase))
+                throw new UnauthorizedAccessException("CSV uploads are only available to corporate accounts.");
+
             var submission = new Submission
             {
                 UserId = userId,
                 UserType = userType,
-                Category = dto.Category,
-                EstimatedWeight = dto.EstimatedWeight,
+                Source = isCsv ? SubmissionSources.Csv : SubmissionSources.Manual,
+                Category = isCsv ? CsvCategory(dto.Items) : dto.Category,
+                EstimatedWeight = isCsv ? CsvTotalWeight(dto.Items) : dto.EstimatedWeight,
                 PickupAddress = dto.PickupAddress,
                 PhoneNumber = dto.PhoneNumber,
-                Items = dto.Items.Select(i => new SubmissionItem
+                Items = dto.Items.Select((i, index) => new SubmissionItem
                 {
-                    ItemName = i.ItemName,
-                    Description = i.Description,
-                    ImageUrl = i.ImageUrl
+                    Position = index,
+                    ItemName = i.ItemName?.Trim()!,
+                    Description = string.IsNullOrWhiteSpace(i.Description) ? null : i.Description.Trim(),
+                    ImageUrl = isCsv ? string.Empty : i.ImageUrl,
+                    Quantity = isCsv ? i.Quantity : 1,
+                    EstimatedWeightKg = isCsv ? i.EstimatedWeightKg : null,
+                    CategoryHint = isCsv && !string.IsNullOrWhiteSpace(i.Category) ? i.Category.Trim() : null,
                 }).ToList()
             };
 
@@ -99,6 +111,22 @@ namespace EWasteManagement.Api.Services
             return rows.Select(ToDto).ToList();
         }
 
+        // A CSV has no category field: use the most common row category that is a known submission
+        // category (it decides the item type the warehouse suggests later), otherwise "Other".
+        private static string CsvCategory(IEnumerable<CreateSubmissionItemDto> rows) =>
+            rows.Select(r => SubmissionCategories.All.FirstOrDefault(
+                    c => string.Equals(c, r.Category?.Trim(), StringComparison.OrdinalIgnoreCase)))
+                .Where(c => c is not null)
+                .GroupBy(c => c!)
+                .OrderByDescending(g => g.Count())
+                .Select(g => g.Key)
+                .FirstOrDefault() ?? SubmissionCategories.Other;
+
+        // Per-unit weight × quantity over the rows that give a weight; rows without one count as 0
+        // here (the Analyzer estimates them).
+        private static decimal CsvTotalWeight(IEnumerable<CreateSubmissionItemDto> rows) =>
+            rows.Sum(r => (r.EstimatedWeightKg ?? 0m) * r.Quantity);
+
         // One SQL query for any number of submissions: the latest workflow,
         // latest job, last failed agent step and last rejection comment are
         // correlated subqueries, not a query per submission. Workflow and Job
@@ -124,12 +152,16 @@ namespace EWasteManagement.Api.Services
                 PickupAddress = s.PickupAddress,
                 PhoneNumber = s.PhoneNumber,
                 CreatedAt = s.CreatedAt,
-                Items = s.Items.Select(i => new SubmissionItemResponseDto
+                Source = s.Source,
+                Items = s.Items.OrderBy(i => i.Position).Select(i => new SubmissionItemResponseDto
                 {
                     Id = i.Id,
                     ItemName = i.ItemName,
                     Description = i.Description,
                     ImageUrl = i.ImageUrl,
+                    Quantity = i.Quantity,
+                    EstimatedWeightKg = i.EstimatedWeightKg,
+                    CategoryHint = i.CategoryHint,
                 }).ToList(),
 
                 WorkflowId = w == null ? null : w.WorkflowId,
@@ -167,6 +199,7 @@ namespace EWasteManagement.Api.Services
                 PickupAddress = row.PickupAddress,
                 PhoneNumber = row.PhoneNumber,
                 CreatedAt = row.CreatedAt,
+                Source = row.Source,
                 Items = row.Items,
                 Status = code,
                 StatusLabel = label,
@@ -207,8 +240,9 @@ namespace EWasteManagement.Api.Services
                 WasteCategory = result.WasteCategory,
                 HazardLevel = result.HazardLevel,
                 EstimatedVolumeKg = result.EstimatedVolumeKg,
-                EstimatedValueUsd = result.EstimatedValueUsd,
+                EstimatedValueLkr = result.EstimatedValueLkr,
                 ConfidenceScore = result.ConfidenceScore,
+                Items = result.Items ?? new(),
             };
         }
 
@@ -222,6 +256,7 @@ namespace EWasteManagement.Api.Services
             public string PickupAddress { get; init; } = string.Empty;
             public string PhoneNumber { get; init; } = string.Empty;
             public DateTime CreatedAt { get; init; }
+            public string Source { get; init; } = SubmissionSources.Manual;
             public List<SubmissionItemResponseDto> Items { get; init; } = new();
 
             public Guid? WorkflowId { get; init; }

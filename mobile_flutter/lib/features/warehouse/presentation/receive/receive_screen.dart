@@ -13,12 +13,11 @@ import '../../../../core/widgets/layout.dart';
 import '../../application/warehouse_providers.dart';
 import '../../data/warehouse_models.dart';
 import '../warehouse_shell.dart';
-import '../widgets/pill_tabs.dart';
+import '../../../../core/widgets/pill_tabs.dart';
 import 'extra_waste_form.dart';
-import 'receipt_history.dart';
 import 'receive_delivery_sheet.dart';
 
-enum ReceiveTab { job, extra, history }
+enum ReceiveTab { job, extra }
 
 /// Receive waste at the dock: a collector's delivery of completed jobs, or an extra-waste
 /// drop-off — each with its own receipt and payment, exactly like the web Receive page.
@@ -45,9 +44,6 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
     return switch (_tab) {
       ReceiveTab.job => _JobCollectionTab(header: _header()),
       ReceiveTab.extra => WarehousePage(children: [_header(), const ExtraWasteForm()]),
-      ReceiveTab.history => WarehousePage(
-          children: [_header(), ReceiptHistory(onOpenItem: (id) => context.go('/warehouse/inventory/$id'))],
-        ),
     };
   }
 
@@ -61,7 +57,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
           ),
           PillTabs<ReceiveTab>(
             value: _tab,
-            options: const {ReceiveTab.job: 'Jobs', ReceiveTab.extra: 'Extra waste', ReceiveTab.history: 'History'},
+            options: const {ReceiveTab.job: 'Jobs', ReceiveTab.extra: 'Extra waste'},
             onChanged: (t) => setState(() => _tab = t),
           ),
           const SizedBox(height: 16),

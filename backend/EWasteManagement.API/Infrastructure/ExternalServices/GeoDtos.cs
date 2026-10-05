@@ -44,4 +44,15 @@ internal class OsrmRoute
 
     [JsonPropertyName("duration")]
     public double Duration { get; set; }
+
+    // Only present when requested with geometries=geojson.
+    [JsonPropertyName("geometry")]
+    public OsrmGeometry? Geometry { get; set; }
+}
+
+internal class OsrmGeometry
+{
+    // GeoJSON LineString: [lon, lat] pairs.
+    [JsonPropertyName("coordinates")]
+    public List<List<double>> Coordinates { get; set; } = new();
 }

@@ -1,23 +1,21 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { PackagePlus, ReceiptText, Recycle, Truck } from 'lucide-react';
+import { PackagePlus, Recycle, Truck } from 'lucide-react';
 import JobReceiveForm from './JobReceiveForm';
 import ExtraWasteReceiveForm from './ExtraWasteReceiveForm';
-import ReceiptHistoryTab from './ReceiptHistoryTab';
 import { PageHeader } from '../components';
 
-type Tab = 'job' | 'extra' | 'history';
+type Tab = 'job' | 'extra';
 
 const TABS: { id: Tab; label: string; hint: string; icon: React.ElementType }[] = [
   { id: 'job', label: 'Job collection', hint: 'One or more completed jobs from a collector', icon: Truck },
   { id: 'extra', label: 'Extra waste', hint: 'Walk-in drop-off brought by a collector', icon: Recycle },
-  { id: 'history', label: 'Receipt history', hint: 'Past drop-offs, incl. rejected items', icon: ReceiptText },
 ];
 
 const ReceivePage: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const tabParam = params.get('tab');
-  const tab: Tab = tabParam === 'extra' || tabParam === 'history' ? tabParam : 'job';
+  const tab: Tab = tabParam === 'extra' ? 'extra' : 'job';
 
   const selectTab = (next: Tab) =>
     setParams(next === 'job' ? {} : { tab: next }, { replace: true });
@@ -30,7 +28,7 @@ const ReceivePage: React.FC = () => {
         icon={PackagePlus}
       />
 
-      <div role="tablist" aria-label="Receiving type" className="mb-5 grid gap-2 sm:grid-cols-3">
+      <div role="tablist" aria-label="Receiving type" className="mb-5 grid gap-2 sm:grid-cols-2">
         {TABS.map(({ id, label, hint, icon: Icon }) => {
           const active = tab === id;
           return (
@@ -64,12 +62,6 @@ const ReceivePage: React.FC = () => {
       <div role="tabpanel" hidden={tab !== 'extra'}>
         <ExtraWasteReceiveForm />
       </div>
-      {/* History is mounted only while open, so it always shows fresh data. */}
-      {tab === 'history' && (
-        <div role="tabpanel">
-          <ReceiptHistoryTab />
-        </div>
-      )}
     </div>
   );
 };

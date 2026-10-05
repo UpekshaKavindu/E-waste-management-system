@@ -13,6 +13,13 @@ public class InventoryItem : BaseEntity
     public Guid? JobId { get; set; }
     public Guid? SubmissionId { get; set; }
 
+    // The submission item / CSV row this was received as. Null for items received as a whole job
+    // (before per-item receiving, or a job whose submission has no items) and for non-job items.
+    public Guid? SubmissionItemId { get; set; }
+
+    // A lot of identical units ("Laptop × 50") is one inventory item; everything else is 1.
+    public int Quantity { get; set; } = 1;
+
     public Guid? ExtraWasteReceiptId { get; set; }
     public ExtraWasteReceipt? ExtraWasteReceipt { get; set; }
 

@@ -8,7 +8,7 @@ class AnalyzerResult(BaseModel):
     waste_category: str = Field(alias="wasteCategory")
     hazard_level: str = Field(alias="hazardLevel")
     estimated_volume_kg: float = Field(alias="estimatedVolumeKg")
-    estimated_value_usd: float = Field(alias="estimatedValueUsd")
+    estimated_value_lkr: float = Field(alias="estimatedValueLkr")
     confidence_score: float = Field(alias="confidenceScore")
 
     model_config = {"populate_by_name": True}
@@ -20,7 +20,7 @@ class AnalyzerResult(BaseModel):
 class BusinessRules(BaseModel):
     auto_hazard_ceiling: str = Field(alias="autoHazardCeiling", default="Medium")  # highest hazard level allowed to auto-approve
     min_confidence_for_auto: float = Field(alias="minConfidenceForAuto", default=0.6)
-    max_value_for_auto_usd: float = Field(alias="maxValueForAutoUsd", default=500.0)
+    max_value_for_auto_lkr: float = Field(alias="maxValueForAutoLkr", default=150000.0)
     required_fields: list[str] = Field(alias="requiredFields", default_factory=lambda: ["wasteCategory", "hazardLevel"])
 
     model_config = {"populate_by_name": True}

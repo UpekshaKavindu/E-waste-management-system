@@ -122,8 +122,9 @@ public class WorkflowOrchestrationService : IWorkflowOrchestrationService
             WasteCategory = result.WasteCategory,
             HazardLevel = result.HazardLevel,
             EstimatedVolumeKg = result.EstimatedVolumeKg,
-            EstimatedValueUsd = result.EstimatedValueUsd,
+            EstimatedValueLkr = result.EstimatedValueLkr,
             ConfidenceScore = result.ConfidenceScore,
+            Items = result.Items,
         }, ct);
     }
 
@@ -162,7 +163,7 @@ public class WorkflowOrchestrationService : IWorkflowOrchestrationService
         var result = await _matcher.RunAsync(
             workflow.WorkflowId,
             coordinates.Value.Latitude, coordinates.Value.Longitude,
-            analyzerResult.EstimatedVolumeKg, analyzerResult.EstimatedValueUsd,
+            analyzerResult.EstimatedVolumeKg, analyzerResult.EstimatedValueLkr,
             alreadyEscalated: workflow.ApprovalRequired,
             ct: ct);
 

@@ -35,7 +35,7 @@ public class ValidatorAgentClient : IValidatorAgentClient
                 wasteCategory = analyzerResult.WasteCategory,
                 hazardLevel = analyzerResult.HazardLevel,
                 estimatedVolumeKg = analyzerResult.EstimatedVolumeKg,
-                estimatedValueUsd = analyzerResult.EstimatedValueUsd,
+                estimatedValueLkr = analyzerResult.EstimatedValueLkr,
                 confidenceScore = analyzerResult.ConfidenceScore
             }
         };

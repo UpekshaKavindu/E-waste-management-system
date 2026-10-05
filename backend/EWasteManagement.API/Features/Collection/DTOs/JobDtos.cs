@@ -64,6 +64,9 @@ public class JobResponseDto
     public DateTime? RespondedAt { get; set; }
     public DateTime? StartedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
+
+    // Completed and weighed into inventory. A completed job that is not yet received is still in the vehicle.
+    public bool ReceivedAtWarehouse { get; set; }
 }
 
 
@@ -91,4 +94,43 @@ public class JobAssignmentHistoryDto
     public string Outcome { get; set; } = string.Empty;
     public string? Reason { get; set; }
     public DateTime Timestamp { get; set; }
+}
+
+// GET /api/v1/jobs/{id}/route — what the collector app draws on the job's map.
+public class JobRouteDto
+{
+    public decimal? OriginLatitude { get; set; }
+    public decimal? OriginLongitude { get; set; }
+    public decimal? PickupLatitude { get; set; }
+    public decimal? PickupLongitude { get; set; }
+
+    public decimal? DistanceKm { get; set; }
+    public int? DurationMinutes { get; set; }
+
+    // The road path as [lat, lng] pairs, origin first. Empty when no route could be found
+    // (no origin yet, unresolved pickup, or the routing service failed) — the app still shows the pins.
+    public List<double[]> Points { get; set; } = new();
+}
+
+// GET /api/v1/jobs/{id}/collector-info — for the assigned collector only.
+public class CollectorJobInfoDto
+{
+    // Customer contact: filled only while the job is Accepted or InProgress.
+    public bool ContactAvailable { get; set; }
+    public string? CustomerName { get; set; }
+    public string? CustomerPhone { get; set; }
+
+    // The real payment once the warehouse has received the job, otherwise an estimate with the same
+    // formula (200 + weight × rate + distance × 15). Null when it can't be worked out yet.
+    public decimal? PaymentAmount { get; set; }
+    public bool PaymentIsEstimate { get; set; }
+    public string? PaymentStatus { get; set; }   // "Pending" | "Paid" once a real payment exists
+
+    // Estimate breakdown (estimates only).
+    public decimal? EstimateWeightKg { get; set; }
+    public decimal? BaseFee { get; set; }
+    public decimal? RatePerKg { get; set; }
+    public decimal? WeightAmount { get; set; }
+    public decimal? DistanceKm { get; set; }
+    public decimal? DistanceAmount { get; set; }
 }

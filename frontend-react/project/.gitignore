@@ -1,0 +1,5 @@
+# Playwright end-to-end test artifacts (see e2e/README.md)
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

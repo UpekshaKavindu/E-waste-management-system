@@ -3,13 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/buyer/application/buyer_providers.dart';
+import '../../features/buyer/presentation/buyer_account_screen.dart';
+import '../../features/buyer/presentation/buyer_notifications_screen.dart';
 import '../../features/buyer/presentation/buyer_registration_screen.dart';
+import '../../features/buyer/presentation/buyer_request_detail_screen.dart';
 import '../../features/buyer/presentation/buyer_requests_screen.dart';
+import '../../features/buyer/presentation/buyer_shell.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/auth/presentation/session_screens.dart';
+import '../../features/auth/presentation/welcome_screen.dart';
 import '../../features/collector/application/collector_providers.dart';
+import '../../features/collector/presentation/collector_profile_screen.dart';
 import '../../features/collector/presentation/collector_profile_setup_screen.dart';
+import '../../features/collector/presentation/collector_shell.dart';
 import '../../features/collector/presentation/job_detail_screen.dart';
 import '../../features/collector/presentation/job_list_screen.dart';
 import '../../features/submissions/presentation/submission_shell.dart';
@@ -52,9 +59,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (auth.status == AuthStatus.restoring) return path == '/splash' ? null : '/splash';
 
       final user = auth.user;
-      if (user == null) return (path == '/login' || path == '/register' || path == '/register/buyer') ? null : '/login';
+      const publicPaths = {'/welcome', '/login', '/register', '/register/buyer'};
+      if (user == null) {
+        if (publicPaths.contains(path)) return null;
+        // A forced sign-out (e.g. expired session) explains itself on the login screen; otherwise
+        // signed-out users start at the welcome page.
+        return auth.signedOutReason != null ? '/login' : '/welcome';
+      }
 
-      if (path == '/login' || path == '/register' || path == '/register/buyer' || path == '/splash') {
+      if (publicPaths.contains(path) || path == '/splash') {
         if (user.role.toLowerCase() == 'corporate') return _corporateHome(ref);
         return homeFor(user);
       }
@@ -87,21 +100,61 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
+      GoRoute(path: '/welcome', builder: (_, __) => const WelcomeScreen()),
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
       GoRoute(path: '/register/buyer', builder: (_, __) => const BuyerRegistrationScreen()),
-      GoRoute(path: '/buyer', builder: (_, __) => const BuyerRequestsScreen()),
       GoRoute(path: '/unavailable', builder: (_, __) => const RoleNotAvailableScreen()),
+      // The buyer portal is a three-tab app like the warehouse and collector apps: the
+      // request portfolio, the updates feed, and the account. A request's full view
+      // nests under the portfolio tab so it keeps the bottom bar.
+      StatefulShellRoute.indexedStack(
+        builder: (_, __, shell) => BuyerShell(navigationShell: shell),
+        branches: [
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/buyer',
+              builder: (_, __) => const BuyerRequestsScreen(),
+              routes: [
+                GoRoute(
+                  path: 'requests/:id',
+                  builder: (_, state) => BuyerRequestDetailScreen(
+                    key: ValueKey(state.pathParameters['id']),
+                    requestId: state.pathParameters['id']!,
+                  ),
+                ),
+              ],
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/buyer/updates', builder: (_, __) => const BuyerNotificationsScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/buyer/account', builder: (_, __) => const BuyerAccountScreen()),
+          ]),
+        ],
+      ),
       GoRoute(path: '/submissions', builder: (_, __) => const SubmissionShell()),
       GoRoute(path: '/collector/setup-profile', builder: (_, __) => const CollectorProfileSetupScreen()),
-      GoRoute(
-        path: '/collector',
-        builder: (_, __) => const JobListScreen(),
-        routes: [
-          GoRoute(
-            path: 'jobs/:id',
-            builder: (_, state) => JobDetailScreen(key: ValueKey(state.pathParameters['id']), jobId: state.pathParameters['id']!),
-          ),
+      StatefulShellRoute.indexedStack(
+        builder: (_, __, shell) => CollectorShell(navigationShell: shell),
+        branches: [
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/collector',
+              builder: (_, __) => const JobListScreen(),
+              routes: [
+                GoRoute(
+                  path: 'jobs/:id',
+                  builder: (_, state) =>
+                      JobDetailScreen(key: ValueKey(state.pathParameters['id']), jobId: state.pathParameters['id']!),
+                ),
+              ],
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/collector/profile', builder: (_, __) => const CollectorProfileScreen()),
+          ]),
         ],
       ),
       StatefulShellRoute.indexedStack(
@@ -116,7 +169,6 @@ final routerProvider = Provider<GoRouter>((ref) {
               builder: (_, state) => ReceiveScreen(
                 initialTab: switch (state.uri.queryParameters['tab']) {
                   'extra' => ReceiveTab.extra,
-                  'history' => ReceiveTab.history,
                   _ => ReceiveTab.job,
                 },
               ),

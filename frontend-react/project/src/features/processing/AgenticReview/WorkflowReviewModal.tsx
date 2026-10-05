@@ -4,7 +4,8 @@ import { agenticReviewApi } from './agenticReviewApi';
 import { parseAnalyzerResult, parseValidatorResult } from './parseWorkflow';
 import { WORKFLOW_STATUS_LABELS, type ApprovalEntry, type ExecutionStep, type WorkflowStatus, type WorkflowSummary } from './types';
 import { getApiErrorMessage } from '../utils/apiError';
-import { formatDateTime, formatKg, shortId } from '../utils/format';
+import { formatDateTime, formatKg, formatMoney, shortId } from '../utils/format';
+import { ItemBreakdown } from '../../submissions/ItemBreakdown';
 import {
   ErrorMessage,
   GlassCard,
@@ -208,13 +209,14 @@ const WorkflowReviewModal: React.FC<WorkflowReviewModalProps> = ({ workflow, can
           <section>
             <h4 className="mb-2 font-display text-sm font-bold text-ink-900">Analyzer and Validator results</h4>
             <div className="grid gap-3 md:grid-cols-2">
-              <AgentCard name="Analyzer agent" role="Classifies the submitted item (category, hazard, value)" ran={analyzer !== null}>
+              <AgentCard name="Analyzer agent" role="Classifies each submitted item (category, hazard, value)" ran={analyzer !== null}>
                 {analyzer ? (
+                  <>
                   <dl>
                     <KeyValue label="Waste category">{analyzer.wasteCategory ?? '—'}</KeyValue>
                     <KeyValue label="Hazard level">{analyzer.hazardLevel ?? '—'}</KeyValue>
                     <KeyValue label="Estimated volume">{analyzer.estimatedVolumeKg !== null ? formatKg(analyzer.estimatedVolumeKg) : '—'}</KeyValue>
-                    <KeyValue label="Estimated value">{analyzer.estimatedValueUsd !== null ? `$${analyzer.estimatedValueUsd.toFixed(2)}` : '—'}</KeyValue>
+                    <KeyValue label="Estimated value">{analyzer.estimatedValueLkr !== null ? formatMoney(analyzer.estimatedValueLkr) : '—'}</KeyValue>
                     <KeyValue label="Confidence">
                       {confidencePct !== null ? (
                         <span className="inline-flex items-center gap-2">
@@ -228,6 +230,8 @@ const WorkflowReviewModal: React.FC<WorkflowReviewModalProps> = ({ workflow, can
                       )}
                     </KeyValue>
                   </dl>
+                  <ItemBreakdown items={analyzer.items} className="mt-2" />
+                  </>
                 ) : (
                   <p className="text-xs text-ink-600">The analyzer has not produced a result for this workflow.</p>
                 )}

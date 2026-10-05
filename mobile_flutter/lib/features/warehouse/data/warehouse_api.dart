@@ -152,9 +152,7 @@ class WarehouseApi {
     final r = await _dio.post<Map<String, dynamic>>('$_inventory/job-collection/receive-delivery', data: {
       'collectorId': collectorId,
       'warehouseLocationId': warehouseLocationId,
-      'jobs': [
-        for (final j in jobs) {'jobId': j.jobId, 'verifiedWeightKg': j.verifiedWeightKg, 'itemType': j.itemType},
-      ],
+      'jobs': [for (final j in jobs) j.toJson()],
     });
     return DeliveryResult.fromJson(r.data!);
   }

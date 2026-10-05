@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'app_colors.dart';
@@ -53,6 +54,8 @@ ThemeData buildAppTheme() {
     scaffoldBackgroundColor: Colors.transparent,
     textTheme: base.textTheme.apply(bodyColor: AppColors.ink900, displayColor: AppColors.ink900),
     iconTheme: const IconThemeData(color: AppColors.ink800),
+    // Every AppBar's automatic back button: a round white chip with a chevron instead of a bare arrow.
+    actionIconTheme: ActionIconThemeData(backButtonIconBuilder: (_) => const _RoundBackIcon()),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.inputFill,
@@ -86,4 +89,28 @@ ThemeData buildAppTheme() {
     textSelectionTheme: const TextSelectionThemeData(cursorColor: AppColors.mint600),
     dividerTheme: const DividerThemeData(color: AppColors.mint100, space: 1, thickness: 1),
   );
+}
+
+class _RoundBackIcon extends StatelessWidget {
+  const _RoundBackIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.92),
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.glassBorder),
+        boxShadow: const [BoxShadow(color: AppColors.glassShadow, blurRadius: 12, offset: Offset(0, 4))],
+      ),
+      alignment: Alignment.center,
+      // Nudged left so the chevron looks centred in the circle.
+      child: const Padding(
+        padding: EdgeInsets.only(right: 2),
+        child: Icon(LucideIcons.chevronLeft, size: 22, color: AppColors.ink900),
+      ),
+    );
+  }
 }

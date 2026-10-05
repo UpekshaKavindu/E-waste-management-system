@@ -332,7 +332,7 @@ public class InventoryProcessingService : IInventoryProcessingService
             .Take(q.PageSize)
             .Select(i => new
             {
-                i.Id, i.ItemType, i.Status, i.OriginType, i.Kind, i.VerifiedWeightKg, i.CurrentLocationId,
+                i.Id, i.ItemType, i.Status, i.OriginType, i.Kind, i.VerifiedWeightKg, i.Quantity, i.CurrentLocationId,
                 LocationName = i.CurrentLocation!.Name,
                 i.ParentInventoryItemId, i.CreatedAt,
                 Category = _db.ClassificationRecords
@@ -348,7 +348,7 @@ public class InventoryProcessingService : IInventoryProcessingService
             Items = rows.Select(r => new InventoryItemListItemResponse
             {
                 Id = r.Id, ItemType = r.ItemType, Status = r.Status.ToString(), OriginType = r.OriginType.ToString(),
-                Kind = r.Kind.ToString(), VerifiedWeightKg = r.VerifiedWeightKg, CurrentLocationId = r.CurrentLocationId,
+                Kind = r.Kind.ToString(), VerifiedWeightKg = r.VerifiedWeightKg, Quantity = r.Quantity, CurrentLocationId = r.CurrentLocationId,
                 CurrentLocationName = r.LocationName, ParentInventoryItemId = r.ParentInventoryItemId,
                 Category = r.Category?.ToString(), ReceivedAt = r.CreatedAt
             }).ToList(),
@@ -390,9 +390,9 @@ public class InventoryProcessingService : IInventoryProcessingService
         return new InventoryItemDetailResponse
         {
             Id = item.Id, ItemType = item.ItemType, Status = item.Status.ToString(), OriginType = item.OriginType.ToString(),
-            Kind = item.Kind.ToString(), VerifiedWeightKg = item.VerifiedWeightKg, CurrentLocationId = item.CurrentLocationId,
+            Kind = item.Kind.ToString(), VerifiedWeightKg = item.VerifiedWeightKg, Quantity = item.Quantity, CurrentLocationId = item.CurrentLocationId,
             CurrentLocationName = item.CurrentLocation?.Name ?? string.Empty,
-            JobId = item.JobId, SubmissionId = item.SubmissionId, ExtraWasteReceiptId = receiptId,
+            JobId = item.JobId, SubmissionId = item.SubmissionId, SubmissionItemId = item.SubmissionItemId, ExtraWasteReceiptId = receiptId,
             ParentInventoryItemId = item.ParentInventoryItemId, ReceivedAt = item.CreatedAt,
             Classification = classification is null ? null : new InventoryClassificationSummary
             {

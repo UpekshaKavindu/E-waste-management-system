@@ -245,7 +245,13 @@ const InventoryDetailPage: React.FC = () => {
       <GlassCard className="mb-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="font-display text-2xl font-bold text-ink-900">{item.itemType}</h2>
+            <h2 className="font-display text-2xl font-bold text-ink-900">
+              {item.itemType}
+              {(item.quantity ?? 1) > 1 && <span className="font-normal text-ink-600"> × {item.quantity}</span>}
+            </h2>
+            {(item.quantity ?? 1) > 1 && (
+              <p className="mt-1 text-sm text-ink-600">A lot of {item.quantity} units received together — weight and status apply to the whole lot.</p>
+            )}
             <p className="mt-1 break-all font-mono text-[11px] text-ink-600">{item.id}</p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <StatusBadge status={status} />

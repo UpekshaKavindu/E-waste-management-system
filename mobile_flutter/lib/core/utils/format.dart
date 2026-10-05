@@ -33,6 +33,29 @@ abstract final class Format {
     return d == null ? '—' : _date.format(d);
   }
 
+  /// Overloads for dates that were already parsed on the way in (see [parseApiDate])
+  /// and are therefore local — no need to hand them back to the API as strings.
+  static String dateTimeOf(DateTime when) => _dateTime.format(when);
+
+  static String dateOf(DateTime when) => _date.format(when);
+
+  /// "3 days ago", "just now" — for list rows where the exact time is noise.
+  static String relative(DateTime when, {DateTime? now}) {
+    final difference = (now ?? DateTime.now()).difference(when);
+    if (difference.inMinutes < 1) return 'just now';
+    if (difference.inHours < 1) return '${difference.inMinutes} min ago';
+    if (difference.inDays < 1) return '${difference.inHours} h ago';
+    if (difference.inDays < 30) return '${difference.inDays} d ago';
+    return _date.format(when);
+  }
+
+  /// "NA" from "Nayanathara Amarathunga" — for avatars.
+  static String initials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    return (parts.first[0] + (parts.length > 1 ? parts.last[0] : '')).toUpperCase();
+  }
+
   /// "3fa85f64…" — enough of a GUID to recognise it without filling the screen.
   static String shortId(String? id) => id == null || id.isEmpty ? '—' : '${id.substring(0, id.length < 8 ? id.length : 8)}…';
 }

@@ -41,7 +41,7 @@ async def run(req: MatcherRunRequest) -> MatcherRunResponse:
 
     state: MatcherState = {
         "workflow_id": str(req.workflow_id),
-        "estimated_value_usd": req.estimated_value_usd,
+        "estimated_value_lkr": req.estimated_value_lkr,
         "already_escalated": req.already_escalated,
         "ranked": ranked,
     }

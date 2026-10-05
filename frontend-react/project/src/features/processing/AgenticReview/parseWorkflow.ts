@@ -25,6 +25,8 @@ const pick = (obj: Record<string, unknown> | null, key: string): unknown => {
 const asString = (v: unknown): string | null => (typeof v === 'string' && v.trim() !== '' ? v : null);
 const asNumber = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 const asBool = (v: unknown): boolean | null => (typeof v === 'boolean' ? v : null);
+const asArray = (v: unknown): Record<string, unknown>[] =>
+  Array.isArray(v) ? v.filter((x): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x)) : [];
 
 export const parseAnalyzerResult = (json: string | null): AnalyzerResult | null => {
   const o = parseObject(json);
@@ -33,8 +35,17 @@ export const parseAnalyzerResult = (json: string | null): AnalyzerResult | null 
     wasteCategory: asString(pick(o, 'wasteCategory')),
     hazardLevel: asString(pick(o, 'hazardLevel')),
     estimatedVolumeKg: asNumber(pick(o, 'estimatedVolumeKg')),
-    estimatedValueUsd: asNumber(pick(o, 'estimatedValueUsd')),
+    estimatedValueLkr: asNumber(pick(o, 'estimatedValueLkr')),
     confidenceScore: asNumber(pick(o, 'confidenceScore')),
+    items: asArray(pick(o, 'items')).map((item) => ({
+      itemName: asString(pick(item, 'itemName')),
+      quantity: asNumber(pick(item, 'quantity')),
+      wasteCategory: asString(pick(item, 'wasteCategory')),
+      hazardLevel: asString(pick(item, 'hazardLevel')),
+      estimatedVolumeKg: asNumber(pick(item, 'estimatedVolumeKg')),
+      estimatedValueLkr: asNumber(pick(item, 'estimatedValueLkr')),
+      confidenceScore: asNumber(pick(item, 'confidenceScore')),
+    })),
   };
 };
 

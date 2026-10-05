@@ -8,6 +8,15 @@ public class CreateCollectorProfileDto
     public decimal CapacityKg { get; set; }
 }
 
+// PUT /api/v1/collectors/me — the collector's own details. Email is the login and stays as is.
+public class UpdateCollectorProfileDto
+{
+    public string FullName { get; set; } = string.Empty;
+    public string? Phone { get; set; }
+    public string VehicleType { get; set; } = string.Empty;
+    public decimal CapacityKg { get; set; }
+}
+
 public class UpdateAvailabilityDto
 {
     public bool IsAvailable { get; set; }
